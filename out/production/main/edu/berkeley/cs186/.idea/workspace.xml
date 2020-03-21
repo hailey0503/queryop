@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="21f39a45-9269-4b98-8fb0-face9678f341" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/java.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/database/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/database/index/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/index/BPlusTree.java" beforeDir="false" afterPath="$PROJECT_DIR$/database/index/BPlusTree.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/index/InnerNode.java" beforeDir="false" afterPath="$PROJECT_DIR$/database/index/InnerNode.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/index/LeafNode.java" beforeDir="false" afterPath="$PROJECT_DIR$/database/index/LeafNode.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/query/BNLJOperator.java" beforeDir="false" afterPath="$PROJECT_DIR$/database/query/BNLJOperator.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/query/GraceHashJoin.java" beforeDir="false" afterPath="$PROJECT_DIR$/database/query/GraceHashJoin.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/query/SortMergeOperator.java" beforeDir="false" afterPath="$PROJECT_DIR$/database/query/SortMergeOperator.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/database/query/SortOperator.java" beforeDir="false" afterPath="$PROJECT_DIR$/database/query/SortOperator.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../test/java/edu/berkeley/cs186/database/index/TestBPlusTree.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../../test/java/edu/berkeley/cs186/database/index/TestBPlusTree.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../../test/java/edu/berkeley/cs186/database/index/TestInnerNode.java" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../../test/java/edu/berkeley/cs186/database/index/TestInnerNode.java" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../../../../../.." />
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="254" />
+    <option name="y" value="23" />
+    <option name="width" value="1186" />
+    <option name="height" value="811" />
+  </component>
+  <component name="ProjectId" id="1ZOmqUdB2DuItUC8Z2FqGqBqZvg" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1581274976458" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="project.structure.last.edited" value="SDKs" />
+    <property name="project.structure.proportion" value="0.0" />
+    <property name="project.structure.side.proportion" value="0.2" />
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="21f39a45-9269-4b98-8fb0-face9678f341" name="Default Changelist" comment="" />
+      <created>1581274652950</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1581274652950</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="184" y="112" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1584718726254">
+      <screen x="0" y="0" width="1440" height="900" />
+    </state>
+    <state x="184" y="112" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1440.900@0.0.1440.900" timestamp="1584718726254" />
+  </component>
+  <component name="masterDetails">
+    <states>
+      <state key="ArtifactsStructureConfigurable.UI">
+        <settings>
+          <artifact-editor />
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="FacetStructureConfigurable.UI">
+        <settings>
+          <last-edited>No facets are configured</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="GlobalLibrariesConfigurable.UI">
+        <settings>
+          <last-edited>Python 3.5 (venv) interpreter library</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="JdkListConfigurable.UI">
+        <settings>
+          <last-edited>11</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="ModuleStructureConfigurable.UI">
+        <settings>
+          <last-edited>cs186</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="ProjectJDKs.UI">
+        <settings>
+          <last-edited>11</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+      <state key="ProjectLibrariesConfigurable.UI">
+        <settings>
+          <last-edited>java</last-edited>
+          <splitter-proportions>
+            <option name="proportions">
+              <list>
+                <option value="0.2" />
+              </list>
+            </option>
+          </splitter-proportions>
+        </settings>
+      </state>
+    </states>
+  </component>
+</project>

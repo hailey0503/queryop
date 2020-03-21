@@ -11,6 +11,7 @@ import edu.berkeley.cs186.database.databox.Type;
 import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
+/*Author: Hailey Pong*/
 
 /**
  * A inner node of a B+ tree. Every inner node in a B+ tree of order d stores
@@ -52,7 +53,7 @@ class InnerNode extends BPlusNode {
     InnerNode(BPlusTreeMetadata metadata, BufferManager bufferManager, List<DataBox> keys,
               List<Long> children, LockContext treeContext) {
         this(metadata, bufferManager, bufferManager.fetchNewPage(treeContext, metadata.getPartNum(), false),
-             keys, children, treeContext);
+                keys, children, treeContext);
     }
 
     /**
@@ -78,34 +79,99 @@ class InnerNode extends BPlusNode {
     // See BPlusNode.get.
     @Override
     public LeafNode get(DataBox key) {
-        // TODO(proj2): implement
+        for (int i = 0; i < keys.size(); i ++) {
+            if (key.compareTo(keys.get(i)) < 0) {
+                return getChild(i).get(key);
 
-        return null;
+            }
+        }
+        return getChild(keys.size()).get(key);
+
     }
 
     // See BPlusNode.getLeftmostLeaf.
     @Override
     public LeafNode getLeftmostLeaf() {
         assert(children.size() > 0);
-        // TODO(proj2): implement
-
-        return null;
+        return getChild(0).getLeftmostLeaf();
     }
 
     // See BPlusNode.put.
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
-        // TODO(proj2): implement
+        int idx = getIdx(key);
+        BPlusNode child = getChild(idx);
+        Optional<Pair<DataBox, Long>> child_ret = child.put(key, rid); //if leaf overflowed, return new right node with new_split_key. if no overflow, return empty
+        if (child_ret.isPresent()){
+            DataBox copiedKey = child_ret.get().getFirst(); //key from leaf
+            Long copiedPgNum = child_ret.get().getSecond(); //page num from leaf
+            int index = getIdx(copiedKey);
+            keys.add(index, copiedKey);
+            children.add(index + 1, copiedPgNum);
+            int d = metadata.getOrder();//getting d (if d = 2, idx 0,1 is first node)
+            if (keys.size() > 2 * d) {
+                List<DataBox> newKeys;
+                newKeys = keys.subList(d + 1, keys.size());//copy keys d+1 to keysize (d ~ key.size() - 1) & add to a newly constructed inner node
+                List<Long> newChildren;
+                newChildren = children.subList(children.size() / 2, children.size());
+                InnerNode newInner = new InnerNode(metadata, bufferManager, newKeys, newChildren, treeContext);
+                Long newPgNum = newInner.getPage().getPageNum();//get new sibling's pg num
+                DataBox new_split_key = keys.get(d);//get split key (dth key: original keys 0~d-1th, dth, newKeys d+1th to end)
+                keys = keys.subList(0, d); //keep first d elements in the original inner node && sublist end index is exclusive
+                children = children.subList(0, d + 1);
 
+                Pair newPair = new Pair(new_split_key, newPgNum); //create a pair<databox, long>
+                Optional<Pair<DataBox, Long>> newInnerNode = Optional.of(newPair); //create on Optional object which is new right sibling
+                sync();
+                return newInnerNode; //returning new sibling
+            }
+        }
+        sync();
         return Optional.empty();
+    }
+    public int getIdx(DataBox key) {
+        int index = 0;
+        for (; index < keys.size(); index++) {
+            if (key.compareTo(keys.get(index)) < 0) {
+                break;
+            }
+        }
+        return index;
     }
 
     // See BPlusNode.bulkLoad.
     @Override
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
-            float fillFactor) {
-        // TODO(proj2): implement
+                                                  float fillFactor) {
+        int d = metadata.getOrder();
+        while (data.hasNext()) {
+            BPlusNode child = getChild(children.size() - 1);
+            Optional<Pair<DataBox, Long>> child_ret = child.bulkLoad(data, fillFactor);
+            if (child_ret.isPresent()){
+                DataBox copiedKey = child_ret.get().getFirst(); //key from leaf (key that is moved up)
+                Long copiedPgNum = child_ret.get().getSecond(); //page num from leaf (pg num of newly created (right) leaf node)
+                keys.add(copiedKey); //no need index since we simply put in the right
+                children.add(copiedPgNum); //add right leaf node's page num to children
+                if (keys.size() > 2 * d) {
+                    List<DataBox> newKeys;
+                    newKeys = keys.subList(d + 1, keys.size()); //copy keys d+1 to keysize (d ~ key.size() - 1) & add to a newly constructed inner node
+                    List<Long> newChildren;
+                    newChildren = children.subList(children.size() / 2, children.size());
+                    InnerNode newInner = new InnerNode(metadata, bufferManager, newKeys, newChildren, treeContext); //create new inner node with key d+1~end
+                    Long newPgNum = newInner.getPage().getPageNum();//get new inner node's pg num
+                    DataBox new_split_key = keys.get(d);//get split key (dth key: original keys 0~d-1th, dth, newKeys d+1th to end)
+                    keys = keys.subList(0, d); //keep first d elements in the original inner node && sublist end index is exclusive
+                    children = children.subList(0, d + 1);
 
+                    Pair newPair = new Pair(new_split_key, newPgNum); //create a pair<databox, long>
+                    Optional<Pair<DataBox, Long>> newInnerNode = Optional.of(newPair); //create on Optional object which is new right sibling
+
+                    sync();
+                    return newInnerNode; //returning new sibling
+                }
+            }
+        }
+        sync();
         return Optional.empty();
     }
 
@@ -113,8 +179,9 @@ class InnerNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-
-        return;
+        LeafNode leaf = get(key);
+        leaf.remove(key);
+        sync();
     }
 
     // Helpers ///////////////////////////////////////////////////////////////////
@@ -284,7 +351,7 @@ class InnerNode extends BPlusNode {
             long childPageNum = child.getPage().getPageNum();
             lines.add(child.toDot());
             lines.add(String.format("  \"node%d\":f%d -> \"node%d\";",
-                                    pageNum, i, childPageNum));
+                    pageNum, i, childPageNum));
         }
 
         return String.join("\n", lines);
@@ -365,8 +432,8 @@ class InnerNode extends BPlusNode {
         }
         InnerNode n = (InnerNode) o;
         return page.getPageNum() == n.page.getPageNum() &&
-               keys.equals(n.keys) &&
-               children.equals(n.children);
+                keys.equals(n.keys) &&
+                children.equals(n.children);
     }
 
     @Override
@@ -374,3 +441,4 @@ class InnerNode extends BPlusNode {
         return Objects.hash(page.getPageNum(), keys, children);
     }
 }
+

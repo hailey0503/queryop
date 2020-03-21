@@ -32,22 +32,21 @@ class SortMergeOperator extends JoinOperator {
 
     /**
      * An implementation of Iterator that provides an iterator interface for this operator.
-     *    See lecture slides.
-     *
+     * See lecture slides.
+     * <p>
      * Before proceeding, you should read and understand SNLJOperator.java
-     *    You can find it in the same directory as this file.
-     *
+     * You can find it in the same directory as this file.
+     * <p>
      * Word of advice: try to decompose the problem into distinguishable sub-problems.
-     *    This means you'll probably want to add more methods than those given (Once again,
-     *    SNLJOperator.java might be a useful reference).
-     *
+     * This means you'll probably want to add more methods than those given (Once again,
+     * SNLJOperator.java might be a useful reference).
      */
     private class SortMergeIterator extends JoinIterator {
         /**
-        * Some member variables are provided for guidance, but there are many possible solutions.
-        * You should implement the solution that's best for you, using any member variables you need.
-        * You're free to use these member variables, but you're not obligated to.
-        */
+         * Some member variables are provided for guidance, but there are many possible solutions.
+         * You should implement the solution that's best for you, using any member variables you need.
+         * You're free to use these member variables, but you're not obligated to.
+         */
         private BacktrackingIterator<Record> leftIterator;
         private BacktrackingIterator<Record> rightIterator;
         private Record leftRecord;
@@ -58,6 +57,9 @@ class SortMergeOperator extends JoinOperator {
         private SortMergeIterator() {
             super();
             // TODO(proj3_part1): implement
+
+
+            marked = false;
         }
 
         /**
@@ -69,8 +71,11 @@ class SortMergeOperator extends JoinOperator {
         public boolean hasNext() {
             // TODO(proj3_part1): implement
 
-            return false;
+
+        return true;
         }
+
+
 
         /**
          * Yields the next record of this iterator.
@@ -81,7 +86,13 @@ class SortMergeOperator extends JoinOperator {
         @Override
         public Record next() {
             // TODO(proj3_part1): implement
+            Record next;
+            while (nextRecord != null) {
+                next =  nextRecord;
+                nextRecord = null;
+                return next;
 
+            }
             throw new NoSuchElementException();
         }
 

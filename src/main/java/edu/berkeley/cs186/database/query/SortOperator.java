@@ -72,8 +72,21 @@ public class SortOperator {
      */
     public Run sortRun(Run run) {
         // TODO(proj3_part1): implement
+        // just get a record iterator over the input run and add the records into your run.
+        //Take a look at the functions in the Run interface.
 
-        return null;
+        //Iterator<Record> iter = iterator();
+        List<Record> records = createRecordList(run);
+        Collections.sort(records, comparator);
+        //PriorityQueue<Comparator> pq = new PriorityQueue(comparator);
+        Run newRun = createRun();
+        newRun.addRecords(records);
+        return newRun;
+    }
+    private List<Record> createRecordList(Run run) {
+        List<Record> records = new ArrayList<>();
+        run.iterator().forEachRemaining(r-> records.add(r));
+        return records;
     }
 
     /**
@@ -86,10 +99,37 @@ public class SortOperator {
      */
     public Run mergeSortedRuns(List<Run> runs) {
         // TODO(proj3_part1): implement
+        RecordPairComparator comp = new RecordPairComparator();
+        Run newRun = createRun();
+        Queue<Pair<Record, Integer>> pq = new PriorityQueue<>(comp);
+        //int input_buffer = numBuffers - 1;
+        //To save a list of iterators before do anything and use those instead
+        List<Iterator<Record>> iter_list = new ArrayList<>();
+        //add each run's first record to PQ
+        addFirst(runs, iter_list, pq);
+        while (!pq.isEmpty()) {
+            Pair<Record, Integer> nextPair = pq.poll();
+            Record rec = nextPair.getFirst();
+            int intVal = nextPair.getSecond();
+            newRun.addRecord(rec.getValues());
+            if (iter_list.get(intVal).hasNext()) {
+                pq.add(new Pair<>(iter_list.get(intVal).next(), intVal));
+            }
+        }
 
-        return null;
+        return newRun;
     }
-
+    private void addFirst(List<Run> runs, List<Iterator<Record>> iter_list,
+                          Queue<Pair<Record, Integer>> pq) {
+        for (int i = 0; i < runs.size(); i++) {
+            Iterator<Record> iter = runs.get(i).iterator();
+            iter_list.add(i, iter);
+            if (iter_list.get(i).hasNext()) {
+                Pair<Record, Integer> newPair = new Pair<>(iter_list.get(i).next(), i);
+                pq.add(newPair);
+            }
+        }
+    }
     /**
      * Given a list of N sorted runs, returns a list of
      * sorted runs that is the result of merging (numBuffers - 1)
@@ -99,8 +139,18 @@ public class SortOperator {
      */
     public List<Run> mergePass(List<Run> runs) {
         // TODO(proj3_part1): implement
+        //takes a list of N sorted runs and merges them into ceil(N / (B - 1)) sorted runs
+        // if we had 20 pages of records and 7 buffer pages,
+        // then the first 6 pages would get merged into a run, then the next 6 pages,
+        // the next 6, and then the final 2.
+        // You just merge them in the order they happen to be in in the list that's passed in.
+        List<Run> mergedRun = new ArrayList<>();
+        for (int i = 0; i < runs.size(); i += numBuffers - 1) {
+            List<Run> batch = runs.subList(i, i + numBuffers - 1);
+            mergedRun.add(mergeSortedRuns(batch));
+        }
 
-        return Collections.emptyList();
+        return mergedRun;
     }
 
     /**
@@ -110,9 +160,32 @@ public class SortOperator {
      */
     public String sort() {
         // TODO(proj3_part1): implement
-
-        return this.tableName; // TODO(proj3_part1): replace this!
+        //this.transaction.getPageIterator <- block we pass into getBlockIterator
+        //what is going on in pass 0:
+        //If there are 5*B pages total (B=#of buffers), then after pass 0
+        // I should have 5 separate, but sorted runs stored in memory? YES
+        //getBlockIterator returns an iterator that is perfectly valid to pass into createRunFromIterator.
+        //If you use getBlockIterator appropriately, you should be able to create the separate iterators you are looking for.
+        //Don't call pageIter.next(). getPageIterator already takes care of the header page.
+        // getBlockIterator advances the page iterator forward.
+        //You may find createRunFromIterator useful as an alternative that avoids some I/Os.
+        List<Run> runList = new ArrayList<>();
+        BacktrackingIterator<Page> pageIter = transaction.getPageIterator(tableName);
+        while (pageIter.hasNext()) {
+            BacktrackingIterator<Record> blockIter =
+                    transaction.getBlockIterator(tableName, pageIter, numBuffers);//# of page for pass 0??
+            Run pass0 = createRunFromIterator(blockIter);
+            Run sortedRun = sortRun(pass0);
+            runList.add(sortedRun);
+        }
+        while (runList.size() > 1) {
+            runList = mergePass(runList);
+        }
+        String tableName = runList.get(0).tableName();
+        return tableName;
     }
+
+
 
     public Iterator<Record> iterator() {
         if (sortedTableName == null) {

@@ -2,7 +2,9 @@ package edu.berkeley.cs186.database.query;
 
 import java.util.*;
 
+import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.TransactionContext;
+import edu.berkeley.cs186.database.common.Buffer;
 import edu.berkeley.cs186.database.common.iterator.BacktrackingIterator;
 import edu.berkeley.cs186.database.databox.DataBox;
 import edu.berkeley.cs186.database.memory.Page;
@@ -89,10 +91,23 @@ class BNLJOperator extends JoinOperator {
          */
         private void fetchNextLeftBlock() {
             // TODO(proj3_part1): implement
+            if (!leftIterator.hasNext()) {
+                leftRecordIterator = null;
+                leftRecord = null;
+            } else {
+            //Page newPage = leftIterator.next();
+            //leftRecord should be set to the first record in this block
+                // this.leftRecorditerator = BNLJOperator.this.getBlockIterator(this.getLeftTableName(), leftIterator);//
+                this.leftRecordIterator = getBlockIterator(this.getLeftTableName(), leftIterator, numBuffers - 2);
+            //check empty
+                this.leftRecord = this.leftRecordIterator.next();
+                this.leftRecordIterator.markPrev();
+            }
         }
-
         /**
-         * Fetch the next non-empty page from the right relation. rightRecordIterator
+         * Fetch the next nonempty page from the right relation.
+         *
+         * rightRecordIterator
          * should be set to a record iterator over the next page of the right relation that
          * has a record in it.
          *
@@ -101,18 +116,65 @@ class BNLJOperator extends JoinOperator {
          */
         private void fetchNextRightPage() {
             // TODO(proj3_part1): implement
-        }
+            if (rightIterator.hasNext()) {
+                //Page newRightPage = rightIterator.next();
+                //rightRecordIterator
+                //should be set to a record iterator over the next page of the right relation???
+                this.rightRecordIterator = getBlockIterator(getRightTableName(), rightIterator,1);
+                this.rightRecordIterator.markPrev(); //???
+            } else {
+                this.rightRecordIterator = null;
+            }
 
+        }
         /**
          * Fetches the next record to return, and sets nextRecord to it. If there are no more
          * records to return, a NoSuchElementException should be thrown.
          *
          * @throws NoSuchElementException if there are no more Records to yield
          */
+        //1. if currently have left record & right (record??) iterator has a next and right&left records are joinable -> join(leftrecord, rightrecord)
+        //2. the right record iterator no next, left record iterator has a next
+        // -> advance left record if I can if I can't check if right iterator hasNext && reset rightrecorditerator
+        //3. the right record iterator & left record iterator both no next, but right iterator has a next
+        // -> advance right page (fetchNextRightPage()) && reset left iterator
+        //4. the right record iterator & left record iterator & right iterator no next but left iterator has a next
+        // -> advance left iterator? fetchNextBlcok(), reset rightIterator = first page of the block & fetch right page()
+        //5. the right record iterator & the right iterator both no next AND thr left record iterator & left iterator both no next
+        // -> no more record throw nosuchexception
+        // if we join 2 exact same table => the table?
         private void fetchNextRecord() {
-            // TODO(proj3_part1): implement
-        }
+            while (!hasNext()) {
+                if (this.leftRecordIterator.hasNext() && this.rightRecordIterator.hasNext()) {
+                    this.leftRecord = this.leftRecordIterator.next();
+                    DataBox leftVal = this.leftRecord.getValues().get(getLeftColumnIndex());
+                    Record rightRecord = this.rightRecordIterator.next();
+                    DataBox rightVal = rightRecord.getValues().get(getRightColumnIndex());
+                    if (leftVal.equals(rightVal)) {
+                        this.nextRecord = joinRecords(leftRecord, rightRecord);
+                    }
+                } else if (this.leftRecordIterator.hasNext() && !this.rightRecordIterator.hasNext()) {
+                    this.leftRecord = this.leftRecordIterator.next();
+                    this.rightRecordIterator.reset();
+                    this.rightRecordIterator.markNext();
 
+                } else if (this.rightIterator.hasNext() && !this.leftRecordIterator.hasNext() && !this.rightRecordIterator.hasNext()) {
+                    fetchNextRightPage();
+                    this.leftRecordIterator.reset();
+                    this.leftRecordIterator.markNext();
+
+
+                } else if (this.leftIterator.hasNext() && !this.rightIterator.hasNext()
+                        && !this.leftRecordIterator.hasNext() && !this.rightRecordIterator.hasNext()) {
+                    fetchNextLeftBlock();
+                    this.rightRecordIterator.reset();
+                    this.rightRecordIterator.markNext();
+                } else {
+                    throw new DatabaseException("NoSuchElementException");
+                }
+            }
+
+        }
         /**
          * Helper method to create a joined record from a record of the left relation
          * and a record of the right relation.

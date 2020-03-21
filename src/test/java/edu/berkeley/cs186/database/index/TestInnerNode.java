@@ -258,6 +258,9 @@ public class TestInnerNode {
         checkTreeMatchesExpectations();
     }
 
+
+
+
     @Test
     @Category(PublicTests.class)
     public void testRemove() {

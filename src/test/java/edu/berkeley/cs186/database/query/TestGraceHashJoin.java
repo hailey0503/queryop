@@ -126,6 +126,8 @@ public class TestGraceHashJoin {
 
             assertEquals(5, output.size());
             assertEquals(expectedOutput, output);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
