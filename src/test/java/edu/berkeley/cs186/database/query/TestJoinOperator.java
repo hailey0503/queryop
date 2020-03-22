@@ -207,63 +207,22 @@ public class TestJoinOperator {
             Record expectedRecord = new Record(expectedRecordValues);
 
             while (outputIterator.hasNext() && numRecords < 100 * 100) {
+
                 assertEquals("mismatch at record " + numRecords, expectedRecord, outputIterator.next());
 
                 numRecords++;
             }
 
             checkIOs(0);
-            while(outputIterator.hasNext()) {
+            /**while(outputIterator.hasNext()) {
                 System.out.println(outputIterator.next());
-            }
+            }**/
 
             assertFalse("too many records", outputIterator.hasNext());
             assertEquals("too few records", 100 * 100, numRecords);
         }
     }
 
-    @Test
-    @Category(PublicTests.class)
-    public void testSimpleJoinBNLJ_1() {
-        d.setWorkMem(5); // B=5
-        try(Transaction transaction = d.beginTransaction()) {
-            setSourceOperators(
-                    new TestSourceOperator(),
-                    new TestSourceOperator(),
-                    transaction
-            );
-
-            startCountIOs();
-
-            JoinOperator joinOperator = new BNLJOperator(leftSourceOperator, rightSourceOperator, "int", "int",
-                    transaction.getTransactionContext());
-            checkIOs(0);
-
-            Iterator<Record> outputIterator = joinOperator.iterator();
-            checkIOs(2);
-
-            int numRecords = 0;
-            List<DataBox> expectedRecordValues = new ArrayList<>();
-            expectedRecordValues.add(new BoolDataBox(true));
-            expectedRecordValues.add(new IntDataBox(1));
-            expectedRecordValues.add(new StringDataBox("a", 1));
-            expectedRecordValues.add(new FloatDataBox(1.2f));
-            expectedRecordValues.add(new BoolDataBox(true));
-            expectedRecordValues.add(new IntDataBox(1));
-            expectedRecordValues.add(new StringDataBox("a", 1));
-            expectedRecordValues.add(new FloatDataBox(1.2f));
-            Record expectedRecord = new Record(expectedRecordValues);
-
-            while (outputIterator.hasNext()) {
-                assertEquals("mismatch at record " + numRecords, expectedRecord, outputIterator.next());
-                numRecords++;
-            }
-            checkIOs(0);
-            System.out.println(numRecords);
-            assertFalse("too many records", outputIterator.hasNext());
-            assertEquals("too few records", 100 * 100, numRecords);
-        }
-    }
 
     @Test
     @Category(PublicTests.class)

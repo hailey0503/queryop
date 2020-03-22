@@ -95,9 +95,6 @@ class BNLJOperator extends JoinOperator {
                 leftRecordIterator = null;
                 leftRecord = null;
             } else {
-            //Page newPage = leftIterator.next();
-            //leftRecord should be set to the first record in this block
-                // this.leftRecorditerator = BNLJOperator.this.getBlockIterator(this.getLeftTableName(), leftIterator);//
                 this.leftRecordIterator = getBlockIterator(this.getLeftTableName(), leftIterator, numBuffers - 2);
             //check empty
                 this.leftRecord = this.leftRecordIterator.next();
@@ -111,7 +108,7 @@ class BNLJOperator extends JoinOperator {
          * should be set to a record iterator over the next page of the right relation that
          * has a record in it.
          *
-         * If there are no more pages in the left relation with records, rightRecordIterator
+         * If there are no more pages in the right relation with records, rightRecordIterator
          * should be set to null.
          */
         private void fetchNextRightPage() {
@@ -121,7 +118,7 @@ class BNLJOperator extends JoinOperator {
                 //rightRecordIterator
                 //should be set to a record iterator over the next page of the right relation???
                 this.rightRecordIterator = getBlockIterator(getRightTableName(), rightIterator,1);
-                this.rightRecordIterator.markPrev(); //???
+                this.rightRecordIterator.markNext();
             } else {
                 this.rightRecordIterator = null;
             }
@@ -142,35 +139,37 @@ class BNLJOperator extends JoinOperator {
         // -> advance left iterator? fetchNextBlcok(), reset rightIterator = first page of the block & fetch right page()
         //5. the right record iterator & the right iterator both no next AND thr left record iterator & left iterator both no next
         // -> no more record throw nosuchexception
-        // if we join 2 exact same table => the table?
+        // 9999: Solved the issue. On the last fetch I threw an exception after getting an equal record. So hasNext() change nextRecord to null again through the try-catch part.
+        // for the other tests, "I see! My bug was caused because I made a mistake on the condition on when to fetch a new right page. Thank you for your time illustrating the problem."
         private void fetchNextRecord() {
+            this.nextRecord = null;
             while (!hasNext()) {
-                if (this.leftRecordIterator.hasNext() && this.rightRecordIterator.hasNext()) {
-                    this.leftRecord = this.leftRecordIterator.next();
+                if (this.leftRecord != null && this.rightRecordIterator.hasNext() && this.rightRecordIterator != null) {
                     DataBox leftVal = this.leftRecord.getValues().get(getLeftColumnIndex());
                     Record rightRecord = this.rightRecordIterator.next();
                     DataBox rightVal = rightRecord.getValues().get(getRightColumnIndex());
                     if (leftVal.equals(rightVal)) {
                         this.nextRecord = joinRecords(leftRecord, rightRecord);
                     }
-                } else if (this.leftRecordIterator.hasNext() && !this.rightRecordIterator.hasNext()) {
+                } else if (this.leftRecordIterator != null && this.leftRecordIterator.hasNext() && this.rightRecordIterator != null) { //current rightRecordIterator (not next)
                     this.leftRecord = this.leftRecordIterator.next();
                     this.rightRecordIterator.reset();
                     this.rightRecordIterator.markNext();
 
-                } else if (this.rightIterator.hasNext() && !this.leftRecordIterator.hasNext() && !this.rightRecordIterator.hasNext()) {
+                } else if (this.rightIterator.hasNext()) {
                     fetchNextRightPage();
                     this.leftRecordIterator.reset();
-                    this.leftRecordIterator.markNext();
+                    this.leftRecord = this.leftRecordIterator.next();
+                    this.leftIterator.markPrev();
 
-
-                } else if (this.leftIterator.hasNext() && !this.rightIterator.hasNext()
-                        && !this.leftRecordIterator.hasNext() && !this.rightRecordIterator.hasNext()) {
+                } else if (this.leftIterator.hasNext()) {
                     fetchNextLeftBlock();
-                    this.rightRecordIterator.reset();
-                    this.rightRecordIterator.markNext();
-                } else {
-                    throw new DatabaseException("NoSuchElementException");
+                    this.rightIterator.reset();
+                    this.rightIterator.markNext();
+                    this.fetchNextRightPage();
+
+                }  else {
+                    throw new NoSuchElementException("NoSuchElementException");
                 }
             }
 
