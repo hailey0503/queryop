@@ -444,6 +444,9 @@ public class TestJoinOperator {
                     expectedRecord = expectedRecord4;
                 }
                 Record r = outputIterator.next();
+                //System.out.println("numrecord" + numRecords);
+                //System.out.println("Expectedrecord" + expectedRecord);
+                //System.out.println("actualrecord" + r);
                 assertEquals("mismatch at record " + numRecords, expectedRecord, r);
                 numRecords++;
             }
@@ -451,6 +454,102 @@ public class TestJoinOperator {
 
             assertFalse("too many records", outputIterator.hasNext());
             assertEquals("too few records", 400 * 400, numRecords);
+        }
+    }
+
+    @Test
+    @Category(PublicTests.class)
+    public void testSortMergeJoinUnsortedInputs1()  {
+        d.setWorkMem(3); // B=3
+        try(Transaction transaction = d.beginTransaction()) {
+            transaction.createTable(TestUtils.createSchemaWithAllTypes(), "leftTable");
+            transaction.createTable(TestUtils.createSchemaWithAllTypes(), "rightTable");
+            Record r1 = TestUtils.createRecordWithAllTypesWithValue(1);
+            List<DataBox> r1Vals = r1.getValues();
+            Record r2 = TestUtils.createRecordWithAllTypesWithValue(2);
+            List<DataBox> r2Vals = r2.getValues();
+            Record r3 = TestUtils.createRecordWithAllTypesWithValue(3);
+            List<DataBox> r3Vals = r3.getValues();
+            Record r4 = TestUtils.createRecordWithAllTypesWithValue(4);
+            List<DataBox> r4Vals = r4.getValues();
+            List<DataBox> expectedRecordValues1 = new ArrayList<>();
+            List<DataBox> expectedRecordValues2 = new ArrayList<>();
+            List<DataBox> expectedRecordValues3 = new ArrayList<>();
+            List<DataBox> expectedRecordValues4 = new ArrayList<>();
+
+            for (int i = 0; i < 2; i++) {
+                expectedRecordValues1.addAll(r1Vals);
+                expectedRecordValues2.addAll(r2Vals);
+                expectedRecordValues3.addAll(r3Vals);
+                expectedRecordValues4.addAll(r4Vals);
+            }
+            Record expectedRecord1 = new Record(expectedRecordValues1);
+            Record expectedRecord2 = new Record(expectedRecordValues2);
+            Record expectedRecord3 = new Record(expectedRecordValues3);
+            Record expectedRecord4 = new Record(expectedRecordValues4);
+            List<Record> leftTableRecords = new ArrayList<>();
+            List<Record> rightTableRecords = new ArrayList<>();
+            for (int i = 0; i < 4 * 2; i++) {
+                Record r;
+                if (i % 4 == 0) {
+                    r = r1;
+                } else if (i % 4 == 1) {
+                    r = r2;
+                } else if (i % 4 == 2) {
+                    r = r3;
+                } else {
+                    r = r4;
+                }
+                leftTableRecords.add(r);
+                rightTableRecords.add(r);
+            }
+            Collections.shuffle(leftTableRecords, new Random(10));
+            Collections.shuffle(rightTableRecords, new Random(20));
+            for (int i = 0; i < 4 * 2; i++) {
+                transaction.getTransactionContext().addRecord("leftTable", leftTableRecords.get(i).getValues());
+                transaction.getTransactionContext().addRecord("rightTable", rightTableRecords.get(i).getValues());
+            }
+
+            setSourceOperators(
+                    new SequentialScanOperator(transaction.getTransactionContext(), "leftTable"),
+                    new SequentialScanOperator(transaction.getTransactionContext(), "rightTable")
+            );
+
+            startCountIOs();
+
+            JoinOperator joinOperator = new SortMergeOperator(leftSourceOperator, rightSourceOperator, "int",
+                    "int",
+                    transaction.getTransactionContext());
+            checkIOs(0);
+
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            //checkIOs(2 * (2 + (2 + TestSortOperator.NEW_TABLE_IOS)));
+
+            int numRecords = 0;
+            Record expectedRecord;
+
+            while (outputIterator.hasNext() && numRecords < 4 * 4) {
+                if (numRecords < (4 * 4 / 4)) {
+                    expectedRecord = expectedRecord1;
+                } else if (numRecords < (4 * 4 / 2)) {
+                    expectedRecord = expectedRecord2;
+                } else if (numRecords < 4 * 4 - (4 * 4 / 4)) {
+                    expectedRecord = expectedRecord3;
+                } else {
+                    expectedRecord = expectedRecord4;
+                }
+                Record r = outputIterator.next();
+                System.out.println("numrecord" + numRecords);
+                System.out.println("Expectedrecord" + expectedRecord);
+                System.out.println("actualrecord" + r);
+                assertEquals("mismatch at record " + numRecords, expectedRecord, r);
+                numRecords++;
+            }
+            checkIOs(0);
+
+            assertFalse("too many records", outputIterator.hasNext());
+            assertEquals("too few records", 400 * 400, numRecords);
+
         }
     }
 
