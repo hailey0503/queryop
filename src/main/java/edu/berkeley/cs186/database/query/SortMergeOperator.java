@@ -56,6 +56,7 @@ class SortMergeOperator extends JoinOperator {
         private Record rightRecord;
         private boolean marked;
         private RecordComparator sortComparator;
+        private int sNum = 0;
         private SortMergeIterator() {
             super();
             // TODO(proj3_part1): implement
@@ -91,6 +92,9 @@ class SortMergeOperator extends JoinOperator {
         @Override
         public boolean hasNext() {
             // TODO(proj3_part1): implement
+            if (!((leftIterator.hasNext() || leftRecord != null))) {
+                return false;
+            }
             return this.nextRecord != null;
         }
 
@@ -107,7 +111,7 @@ class SortMergeOperator extends JoinOperator {
                 throw new NoSuchElementException();
             }
             Record nextRecord = this.nextRecord;
-            System.out.println(nextRecord);
+            //System.out.println(nextRecord);
             try {
                 this.fetchNextRecord();
             } catch (NoSuchElementException e) {
@@ -115,65 +119,62 @@ class SortMergeOperator extends JoinOperator {
             }
 
             return nextRecord;
+
+
+
+
+
         }
         private void fetchNextRecord() {
-            int sNum = 0;
+
             int rNum = 0;
 
             this.nextRecord = null;
             while (!hasNext()) {
-                if (this.leftRecord == null || !leftIterator.hasNext()) { //end of left table
-                    throw new NoSuchElementException("No new record to fetch");
-                }
+                while (this.leftRecord != null || leftIterator.hasNext()) { //end of left table
 
-                while (sortComparator.compare(this.leftRecord, this.rightRecord) < 0 ) {//advance left
-                    leftRecord = leftIterator.next();
-                }
-                while (sortComparator.compare(this.leftRecord, this.rightRecord) > 0) {//advance right
-                    rightRecord = rightIterator.next();
-                }
-                if (marked == false) {
-                    this.rightIterator.markPrev();//mark right (S)
-                    marked = true;
-                }
-                if (this.rightRecord == null && !this.rightIterator.hasNext()) {//end of right but more records in left
-
-                    this.leftRecord = this.leftIterator.next();
-                    this.rightIterator.reset();
-                    marked = false;////??
-                }
-                while (sortComparator.compare(this.leftRecord, this.rightRecord) == 0) {
-                    if (sortComparator.compare(this.leftRecord, this.rightRecord) == 0) { //join until no more matching s (advancing s)
-                        if (this.leftRecord == null) {
-                            throw new NoSuchElementException("No new record to fetch");
+                    while (sortComparator.compare(this.leftRecord, this.rightRecord) < 0) {//advance left
+                        leftRecord = leftIterator.next();
+                    }
+                    while (sortComparator.compare(this.leftRecord, this.rightRecord) > 0) {//advance right
+                        rightRecord = rightIterator.next();
+                    }
+                    if (marked == false) {
+                        this.rightIterator.markPrev();//mark right (S)
+                        marked = true;
+                    }
+                    while (this.rightRecord == null && !this.rightIterator.hasNext()) {//end of right but more records in left
+                        this.leftRecord = this.leftIterator.next();
+                        //this.rightIterator.reset();
+                        //marked = false;////??
+                    }
+                    if (this.leftRecord == null || !leftIterator.hasNext()) {
+                        throw new NoSuchElementException("No new record to fetch");
+                    }
+                    while (sortComparator.compare(this.leftRecord, this.rightRecord) == 0) {
+                        if (sortComparator.compare(this.leftRecord, this.rightRecord) == 0) { //join until no more matching s (advancing s)
+                            nextRecord = joinRecords(this.leftRecord, this.rightRecord);
+                            rightRecord = rightIterator.next(); //(advance s)
+                            sNum++;
+                            //System.out.println("snum" + sNum);
+                            if (sortComparator.compare(this.leftRecord, this.rightRecord) != 0) {
+                                rightIterator.reset();//reset s
+                            }
                         }
-                        nextRecord = joinRecords(this.leftRecord, this.rightRecord);
-                        rightRecord = rightIterator.next(); //(advance s)
-                        sNum++;
-                        //System.out.println("snum" + sNum);
                         if (sortComparator.compare(this.leftRecord, this.rightRecord) != 0) {
-                            rightIterator.reset();//reset s
-                            //rightRecord = rightIterator.next();
-                            //System.out.println(rightIterator.next());
-                            //System.out.println(leftRecord);
-                            //this.rightIterator.markPrev();//mark again (not sure if necessary)
+                            rightRecord = rightIterator.next();
+                            Record last = leftRecord;
+                            leftRecord = leftIterator.next();
+                            if (sortComparator.compare(this.leftRecord, last) != 0) {
+                                marked = false;
+                            }
 
                         }
+                        return;
                     }
-                    if (sortComparator.compare(this.leftRecord, this.rightRecord) != 0) {
-                        rightRecord = rightIterator.next(); //set to reset point
-                        Record last = leftRecord;
-                        leftRecord = leftIterator.next(); //advance r
-                        if (sortComparator.compare(this.leftRecord, last) != 0) {
-                            marked = false;
-                        }
-                    }
-                    return;
-                    //rNum++;
-                    //System.out.println(rNum);
-                    }
+
                 }
-           // }
+            }
         }
         private class RecordComparator implements Comparator<Record> {
             @Override
