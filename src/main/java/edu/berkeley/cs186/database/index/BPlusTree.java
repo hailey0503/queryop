@@ -87,7 +87,7 @@ public class BPlusTree {
      * All pages allocated on the given partition are serializations of inner and leaf nodes.
      */
     public BPlusTree(BufferManager bufferManager, BPlusTreeMetadata metadata, LockContext lockContext) {
-        // TODO(proj4_part2): B+ tree locking
+        // TODO(proj4_part3): B+ tree locking
 
         // Sanity checks.
         if (metadata.getOrder() < 0) {
@@ -137,8 +137,13 @@ public class BPlusTree {
      */
     public Optional<RecordId> get(DataBox key) {
         typecheck(key);
+
         return root.get(key).getKey(key);
         // TODO(proj4_part2): B+ tree locking
+
+        // TODO(proj2): implement
+        // TODO(proj4_part3): B+ tree locking
+
 
 
     }
@@ -152,7 +157,7 @@ public class BPlusTree {
      */
     public Iterator<RecordId> scanEqual(DataBox key) {
         typecheck(key);
-        // TODO(proj4_part2): B+ tree locking
+        // TODO(proj4_part3): B+ tree locking
 
         Optional<RecordId> rid = get(key);
         if (rid.isPresent()) {
@@ -191,7 +196,7 @@ public class BPlusTree {
      */
     public Iterator<RecordId> scanAll() {
         // TODO(proj2): Return a BPlusTreeIterator.
-        // TODO(proj4_part2): B+ tree locking
+        // TODO(proj4_part3): B+ tree locking
 
         return new BPlusTreeIterator();
     }
@@ -222,7 +227,7 @@ public class BPlusTree {
     public Iterator<RecordId> scanGreaterEqual(DataBox key) {
         typecheck(key);
         // TODO(proj2): Return a BPlusTreeIterator.
-        // TODO(proj4_part2): B+ tree locking
+        // TODO(proj4_part3): B+ tree locking
 
         return new BPlusTreeIterator(key);
     }
@@ -238,6 +243,10 @@ public class BPlusTree {
      */
     public void put(DataBox key, RecordId rid) {
         typecheck(key);
+
+        // TODO(proj2): implement
+        // TODO(proj4_part3): B+ tree locking
+
 
         // TODO(proj4_part2): B+ tree locking
         Optional<Pair<DataBox, Long>> returning= root.put(key, rid);//
@@ -273,8 +282,9 @@ public class BPlusTree {
      * bulkLoad (see comments in BPlusNode.bulkLoad).
      */
     public void bulkLoad(Iterator<Pair<DataBox, RecordId>> data, float fillFactor) {
+
         while(data.hasNext()) {
-            Optional<Pair<DataBox, Long>> returning= root.bulkLoad(data, fillFactor);//
+            Optional<Pair<DataBox, Long>> returning = root.bulkLoad(data, fillFactor);//
             InnerNode newRoot;
             if (returning.isPresent()) {
                 DataBox copiedKey = returning.get().getFirst(); //key from inner
@@ -288,6 +298,9 @@ public class BPlusTree {
                 updateRoot(newRoot);
             }
         }
+        // TODO(proj2): implement
+        // TODO(proj4_part3): B+ tree locking
+
 
     }
 
@@ -304,8 +317,13 @@ public class BPlusTree {
      */
     public void remove(DataBox key) {
         typecheck(key);
+
         root.remove(key);
         // TODO(proj4_part2): B+ tree locking
+
+        // TODO(proj2): implement
+        // TODO(proj4_part3): B+ tree locking
+
 
     }
 
@@ -315,7 +333,7 @@ public class BPlusTree {
      * more information.
      */
     public String toSexp() {
-        // TODO(proj4_part2): B+ tree locking
+        // TODO(proj4_part3): B+ tree locking
         return root.toSexp();
     }
 
@@ -332,7 +350,7 @@ public class BPlusTree {
      * to create a PDF of the tree.
      */
     public String toDot() {
-        // TODO(proj4_part2): B+ tree locking
+        // TODO(proj4_part3): B+ tree locking
         List<String> strings = new ArrayList<>();
         strings.add("digraph g {" );
         strings.add("  node [shape=record, height=0.1];");

@@ -1,5 +1,7 @@
 package edu.berkeley.cs186.database.concurrency;
 
+// If you see this line, you have successfully pulled the latest changes from the skeleton for proj4!
+
 public enum LockType {
     S,   // shared
     X,   // exclusive
@@ -19,6 +21,36 @@ public enum LockType {
             throw new NullPointerException("null lock type");
         }
         // TODO(proj4_part1): implement
+        if (a == S) {
+            if (b == NL || b == IS || b == S) {
+                return true;
+            }
+        }
+        if (a == X) {
+            if (b == NL) {
+                return true;
+            }
+        }
+        if (a == IS) {
+            if (b == NL || b == IS || b == IX || b == S || b == SIX) {
+                return true;
+            }
+        }
+        if (a == IX) {
+            if (b == NL || b == IS || b == IX) {
+                return true;
+            }
+        }
+        if (a == SIX) {
+            if (b == NL || b == IS) {
+                return true;
+            }
+        }
+        if (a == NL) {
+            if (b == NL || b == IS || b == IX || b == S || b == SIX || b == X) {
+                return true;
+            }
+        }
 
         return false;
     }

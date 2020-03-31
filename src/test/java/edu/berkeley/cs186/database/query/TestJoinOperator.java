@@ -444,6 +444,7 @@ public class TestJoinOperator {
                     expectedRecord = expectedRecord4;
                 }
                 Record r = outputIterator.next();
+
                 //System.out.println("numrecord" + numRecords);
                 //System.out.println("Expectedrecord" + expectedRecord);
                 //System.out.println("actualrecord" + r);
@@ -542,6 +543,7 @@ public class TestJoinOperator {
                 System.out.println("numrecord    >>>" + numRecords);
                 System.out.println("Expectedrecord    >>>" + expectedRecord);
                 System.out.println("actualrecord    >>>" + r);
+
                 assertEquals("mismatch at record " + numRecords, expectedRecord, r);
                 numRecords++;
             }
