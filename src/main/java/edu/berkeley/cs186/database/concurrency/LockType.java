@@ -83,6 +83,37 @@ public enum LockType {
             throw new NullPointerException("null lock type");
         }
         // TODO(proj4_part1): implement
+      /*  if (parentLockType == S) {
+            if (childLockType == IS || childLockType == NL) {
+                return true;
+            }
+        }
+        if (parentLockType == X) {
+            if (childLockType == IX || childLockType == NL) {
+                return true;
+            }
+        }*/
+        if (parentLockType == IS) {
+            if (childLockType == IS || childLockType == S|| childLockType == NL) {
+                return true;
+            }
+        }
+        if (parentLockType == IX) {
+            if (childLockType == IX || childLockType == X || childLockType == SIX || childLockType == NL || childLockType == IS || childLockType == S ) {//IS??????
+                return true;
+            }
+        }
+        if (parentLockType == SIX) { //??
+            if (childLockType == IX || childLockType == X || childLockType == SIX || childLockType == NL) {
+                return true;
+            }
+        }
+
+        if (parentLockType == NL || parentLockType == SIX || parentLockType == S || parentLockType == X) {
+            if (childLockType == NL) {
+                return true;
+            }
+        }
 
         return false;
     }
@@ -93,12 +124,59 @@ public enum LockType {
      * an X lock, because an X lock allows the transaction to do everything
      * the S lock allowed it to do).
      */
+    //for canParentBeLock, the note 11 offers some insight into the protocol on page 13.
+    //
+    //"To get S or IS lock on a node, must hold IS or IX on parent node."
+    //
+    //However, to gain an S lock, would it also be okay for the parent to have an S lock,
+    // as that feels like a stronger condition that having an IS? or would that not make sense..?
+    //If a transaction holds an S lock on a node, then it has read access to that node and all of its descendants.
+    // Thus, an S lock on any of that node's descendants is redundant.
+    //Anything can be the parent of NL, including NL. I'll leave the S or X question to you to determine, but yes S and X can be parent of NL
+    // You should be able to figure out just using the description of each locktype in the readme.
+    // If you treat each lock as a set of permissions, then "A can substitute B" really just asks the question "are A's permissions a superset of B's"? To get you started:
+    //
+    //NL(R) Permissions: {} (empty set)
+    //X(R) Permissions: {Read R, Write R, Read R's descendants, Write R's descendants}
+    //S(R) Permissions: {Read R, Read R's descendants}
+    //
+    //From this much you should be able to show that X can substitute S since X's permissions are a superset of S's, and that anything can substitute NL
+    // (every set is a superset of the empty set).
     public static boolean substitutable(LockType substitute, LockType required) {
         if (required == null || substitute == null) {
             throw new NullPointerException("null lock type");
         }
         // TODO(proj4_part1): implement
+        if (required == substitute) {
+            return true;
+        }
+        if (substitute == SIX){
+            if ((required == S) || required == IS || required == IX) {
+                return true;
+            }
+        } //redundant
+        if (required == NL) {
+            return true;
+        }
+        /*if (substitute == IS) {
+            if (required == IS || required == IX) {
+                return true;
+            }
+        }*/
+        if (substitute == IX) {
+            if (required == IS) { //???
+                return true;
+            }
+        }
+        if (substitute == X) {
+            if (required == IX || required == S) {
+                return true;
 
+            }
+        }
+
+        // You can substitute S with S, SIX, or X
+        // You cannot substitute X with IS, IX, S, or SIX
         return false;
     }
 

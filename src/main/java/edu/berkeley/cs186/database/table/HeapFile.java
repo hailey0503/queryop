@@ -35,7 +35,8 @@ public interface HeapFile extends BacktrackingIterable<Page> {
      *                      cannot be larger than effectivePageSize - emptyPageMetadataSize
      * @return pinned page with the requested area of contiguous space
      */
-    Page getPageWithSpace(short requiredSpace);
+    Page
+    getPageWithSpace(short requiredSpace);
 
     /**
      * Updates the amount of free space on a page. Updating to effectivePageSize

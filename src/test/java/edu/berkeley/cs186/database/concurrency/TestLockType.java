@@ -60,6 +60,7 @@ public class TestLockType {
         assertTrue(LockType.compatible(LockType.IS, LockType.NL));
         assertTrue(LockType.compatible(LockType.IX, LockType.NL));
         assertTrue(LockType.compatible(LockType.SIX, LockType.NL));
+        assertFalse(LockType.compatible(LockType.X, LockType.S));
     }
 
     @Test

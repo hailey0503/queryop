@@ -739,7 +739,11 @@ public class Database implements AutoCloseable {
     private synchronized void setTransactionCounter(long newTransactionCounter) {
         this.numTransactions = newTransactionCounter;
     }
-
+    //We will be using Strict Two-Phase Locking in our database,
+    // which means that lock releases only happen when the transaction finishes, in the cleanup method.
+    //
+    //Modify the close method of Database.TransactionContextImpl to release all locks the transaction acquired.
+    //You should only use LockContext#release
     private class TransactionContextImpl extends AbstractTransactionContext {
         long transNum;
         Map<String, String> aliases;
@@ -1051,11 +1055,31 @@ public class Database implements AutoCloseable {
         public int getTreeHeight(String tableName, String columnName) {
             return resolveIndexMetadataFromName(tableName, columnName).getSecond().getHeight();
         }
+        //We will be using Strict Two-Phase Locking in our database,
+        // which means that lock releases only happen when the transaction finishes, in the cleanup method.
+        //
+        //Modify the close method of Database.TransactionContextImpl to release all locks the transaction acquired.
+        //You should only use LockContext#release
+        //Yes - release locks from bottom up. There's many ways to structure task 2 code,
+        // but I think one of the simplest is to release the locks in the reverse order in which they were acquired
 
+        //What are some pointers for finding the LockContexts to release the locks for task 2?
+        // I think we have to release the locks in a bottom-up order, but I'm not sure where to get the LockContexts to release them.
+
+        //Try using a combination of LockManager.getLocks() and LockContext.fromResourceName()
         @Override
         public void close() {
             // TODO(proj4_part3): release locks held by the transaction
-            return;
+            List<Lock> locks = lockManager.getLocks(this);
+            while (!locks.isEmpty()) {
+                for (Lock l : locks) {
+                    LockContext lockContext = LockContext.fromResourceName(lockManager, l.name);
+                    if (lockContext.saturation(this) == 0) { //find the most bottom nodes and release
+                        lockContext.release(this);
+                    }
+                }
+                locks = lockManager.getLocks(this);
+            }
         }
 
         @Override
