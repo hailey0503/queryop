@@ -107,7 +107,11 @@ public class PageDirectory implements HeapFile {
     public Page getPage(long pageNum) {
         return new DataPage(pageDirectoryId, this.bufferManager.fetchPage(lockContext, pageNum, false));
     }
-
+    // retrieves a page in the page directory that has space, and returns it to you. You are asked to "modify [getPageWithSpace] to request the appropriate X lock upfront."
+    // If you look through the code (specifically at the constructor for DataPage), there is a read of the page in the constructor. From the spec:
+    //"The first operation that we perform in an insert/update/delete of a record involves reading some metadata from the page.
+    // Following our logic of reactively acquiring locks only as needed, we would request an S lock on the page, then request a promotion to an X lock when attempting to write to the page.
+    // Given that we know we will eventually need an X lock, we should request it to begin with."
     @Override
     public Page getPageWithSpace(short requiredSpace) {
         // TODO(proj4_part3): modify for smarter locking
@@ -118,7 +122,7 @@ public class PageDirectory implements HeapFile {
         if (requiredSpace > EFFECTIVE_PAGE_SIZE - emptyPageMetadataSize) {
             throw new IllegalArgumentException("requesting page with more space than the size of the page");
         }
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         Page page = this.firstHeader.loadPageWithSpace(requiredSpace);
 
         return new DataPage(pageDirectoryId, page);

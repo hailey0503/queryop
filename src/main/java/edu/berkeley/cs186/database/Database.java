@@ -1067,6 +1067,9 @@ public class Database implements AutoCloseable {
         // I think we have to release the locks in a bottom-up order, but I'm not sure where to get the LockContexts to release them.
 
         //Try using a combination of LockManager.getLocks() and LockContext.fromResourceName()
+
+        //Remember that the parent of a particular context might be null (for example if it is the context of the database).
+        //accessing parent.numChildLocks will throw a NullPointerException if you don't ensure that parent isn't null beforehand).
         @Override
         public void close() {
             // TODO(proj4_part3): release locks held by the transaction
@@ -1075,6 +1078,10 @@ public class Database implements AutoCloseable {
                 for (Lock l : locks) {
                     LockContext lockContext = LockContext.fromResourceName(lockManager, l.name);
                     if (lockContext.saturation(this) == 0) { //find the most bottom nodes and release
+                        if (lockContext.parentContext() == null) {
+                            //
+                        }
+
                         lockContext.release(this);
                     }
                 }

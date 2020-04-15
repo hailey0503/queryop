@@ -311,20 +311,25 @@ public class Table implements BacktrackingIterable<Record> {
      * record. stats is updated accordingly. An exception is thrown if rid does
      * not correspond to an existing record in the table.
      */
+    //You should therefore modify the following methods to request the appropriate X lock upfront.
+    //we would request an S lock on the page, then request a promotion to an X lock when attempting to write to the page.
     public synchronized Record updateRecord(List<DataBox> values, RecordId rid) {
         // TODO(proj4_part3): modify for smarter locking
 
         validateRecordId(rid);
-
+        //exception?
         Record newRecord = schema.verify(values);
         Record oldRecord = getRecord(rid);
-
+        //LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         Page page = fetchPage(rid.getPageNum());
         try {
+            //LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
             insertRecord(page, rid.getEntryNum(), newRecord);
 
             this.stats.removeRecord(oldRecord);
             this.stats.addRecord(newRecord);
+
             return oldRecord;
         } finally {
             page.unpin();
@@ -340,7 +345,8 @@ public class Table implements BacktrackingIterable<Record> {
         // TODO(proj4_part3): modify for smarter locking
 
         validateRecordId(rid);
-
+        //LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         Page page = fetchPage(rid.getPageNum());
         try {
             Record record = getRecord(rid);
@@ -348,6 +354,8 @@ public class Table implements BacktrackingIterable<Record> {
             byte[] bitmap = getBitMap(page);
             Bits.setBit(bitmap, rid.getEntryNum(), Bits.Bit.ZERO);
             writeBitMap(page, bitmap);
+
+           // LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
 
             stats.removeRecord(record);
             int numRecords = numRecordsPerPage == 1 ? 0 : numRecordsOnPage(page);
