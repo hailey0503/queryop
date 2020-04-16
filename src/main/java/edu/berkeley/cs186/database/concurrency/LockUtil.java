@@ -54,21 +54,24 @@ public class LockUtil {
         }
 
         if (effectiveLock.equals(LockType.NL)) {
+            if (hasParent) {
             if (LockType.canBeParentLock(parentLock, lockType)) {
                 lockContext.acquire(transaction, lockType);
                 return;
             } else {
                 potentialParentLock = LockType.parentLock(lockType);
-                if (parentLock == LockType.NL) {
+                if (parentLock.equals(LockType.NL)) {
                     updateParent(transaction, potentialParentLock, parentContext);
                     lockContext.acquire(transaction, lockType);
                     return;
-                } else{
+                } else {
                     changeParent(transaction, potentialParentLock, parentContext);
                     lockContext.acquire(transaction, lockType);
                     return;
                 }
-
+            }
+            } else { //this context is DB
+                lockContext.acquire(transaction, lockType);
             }
 
              //do we have to care the parent? ex, locktype X, parent(table) S then need SIX or locktype X for page level, but S at db.
@@ -86,14 +89,14 @@ public class LockUtil {
             return;
         } else {
             if (effectiveLock.equals(LockType.SIX)) {
-                if (lockType == LockType.X) { //SIX->X X is more permissive?
+                if (lockType.equals(LockType.X)) { //SIX->X X is more permissive?
                     //checking parent
                     //changeParent(transaction, parentLock, lockContext.parentContext());
                     //lockContext.promote(transaction, lockType);
                     return;
                     }
                     // lockType S -> SIX should remain the same.
-                    else if (lockType == LockType.S) {
+                    else if (lockType.equals(LockType.S)) {
                         return;
                     }
                 }
@@ -103,7 +106,7 @@ public class LockUtil {
                 // every time curr lock type is promoted, check parent by canBeParent then change the parent if it can't be parent of the lock type just promoted?
                 //what about escalate??
             if (effectiveLock.equals(LockType.S)) {
-                if (lockType == LockType.X) {
+                if (lockType.equals(LockType.X)) {
                     if (hasParent) {
                         potentialParentLock = LockType.parentLock(lockType);
                         changeParent(transaction, potentialParentLock, parentContext);
@@ -112,25 +115,25 @@ public class LockUtil {
                     return;
                 }
             }
-            if (effectiveLock == LockType.X) {
+            if (effectiveLock.equals(LockType.X)) {
                 return;
             }
-            if (effectiveLock == LockType.IS) {
-                if (lockType == LockType.X) {
+            if (effectiveLock.equals(LockType.IS)) {
+                if (lockType.equals(LockType.X)) {
                     if (hasParent) {
                         potentialParentLock = LockType.parentLock(lockType);
                         changeParent(transaction, potentialParentLock, parentContext);
                     }
                     lockContext.promote(transaction, lockType);
                     return;
-                } else if (lockType == LockType.S) {
+                } else if (lockType.equals(LockType.S)) {
                     lockContext.escalate(transaction);
                     return;
                 }
             }
             // lockType S ->IX should become SIX.
-            if (effectiveLock == LockType.IX) {
-                if (lockType == LockType.S) {
+            if (effectiveLock.equals(LockType.IX)) {
+                if (lockType.equals(LockType.S)) {
                     if (hasParent) {
                         //if there is X on the child change to SIX
                         List<Lock> allLocks = lockContext.lockman.getLocks(transaction);
@@ -148,7 +151,7 @@ public class LockUtil {
                     }
                     lockContext.promote(transaction, LockType.SIX);
                     return;
-                } else if (lockType == LockType.X) {
+                } else if (lockType.equals(LockType.X)) {
                     lockContext.escalate(transaction);
                     return;
                 }

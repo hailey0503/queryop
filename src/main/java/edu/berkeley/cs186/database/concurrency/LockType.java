@@ -21,7 +21,7 @@ public enum LockType {
             throw new NullPointerException("null lock type");
         }
         // TODO(proj4_part1): implement
-        if (a == S) {
+        if (a.equals(LockType.S)) {
             if (b == NL || b == IS || b == S) {
                 return true;
             }
@@ -79,8 +79,8 @@ public enum LockType {
      * on a child.
      */
     public static boolean canBeParentLock(LockType parentLockType, LockType childLockType) {
-        if (parentLockType == null || childLockType == null) {
-            throw new NullPointerException("null lock type");
+        if (parentLockType == null || childLockType == null) { //parentLockType == null || ???
+            throw new NullPointerException("No Lock Held");
         }
         // TODO(proj4_part1): implement
       /*  if (parentLockType == S) {
@@ -93,24 +93,24 @@ public enum LockType {
                 return true;
             }
         }*/
-        if (parentLockType == IS) {
-            if (childLockType == IS || childLockType == S|| childLockType == NL) {
+        if (parentLockType.equals(IS)) {
+            if (childLockType.equals(IS) || childLockType.equals(S)|| childLockType.equals(NL)) {
                 return true;
             }
         }
-        if (parentLockType == IX) {
-            if (childLockType == IX || childLockType == X || childLockType == SIX || childLockType == NL || childLockType == IS || childLockType == S ) {//IS??????
+        if (parentLockType.equals(IX)) {
+            if (childLockType.equals(IX) || childLockType.equals(X) || childLockType.equals(SIX) || childLockType.equals(NL) || childLockType.equals(IS) || childLockType.equals(S) ) {//IS??????
                 return true;
             }
         }
-        if (parentLockType == SIX) { //??
-            if (childLockType == IX || childLockType == X || childLockType == SIX || childLockType == NL) {
+        if (parentLockType.equals(SIX)) { //??
+            if (childLockType.equals(IX) || childLockType.equals(X) || childLockType.equals(SIX) || childLockType.equals(NL)) {
                 return true;
             }
         }
 
-        if (parentLockType == NL || parentLockType == SIX || parentLockType == S || parentLockType == X) {
-            if (childLockType == NL) {
+        if (parentLockType.equals(NL) || parentLockType.equals(SIX) || parentLockType.equals(S) || parentLockType.equals(X)) {
+            if (childLockType.equals(NL)) {
                 return true;
             }
         }
@@ -147,15 +147,15 @@ public enum LockType {
             throw new NullPointerException("null lock type");
         }
         // TODO(proj4_part1): implement
-        if (required == substitute) {
+        if (required.equals(substitute)) {
             return true;
         }
-        if (substitute == SIX){
-            if ((required == S) || required == IS || required == IX) {
+        if (substitute.equals(SIX)){
+            if ((required.equals(S)) || required.equals(IS) || required.equals(IX)) {
                 return true;
             }
         } //redundant
-        if (required == NL) {
+        if (required.equals(NL)) {
             return true;
         }
         /*if (substitute == IS) {
@@ -163,13 +163,13 @@ public enum LockType {
                 return true;
             }
         }*/
-        if (substitute == IX) {
-            if (required == IS) { //???
+        if (substitute.equals(IX)) {
+            if (required.equals(IS)) { //???
                 return true;
             }
         }
-        if (substitute == X) {
-            if (required == IX || required == S) {
+        if (substitute.equals(X)) {
+            if (required.equals(IX) || required.equals(S)) {
                 return true;
 
             }

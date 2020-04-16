@@ -189,37 +189,24 @@ public class LockContext {
             throw new UnsupportedOperationException("This Resource is read only.");
         }
         for (Lock l : locks) {//Question: I am checking all locks regardless of parent/children/itself
-            if (l.lockType == LockType.NL) {
+            if (l.lockType.equals(LockType.NL)) {
                 throw new NoLockHeldException("No Lock Held Exception");
             }
         }
-        if (!numChildLocks.containsKey(transNum)) { //necessary? //find children that is held by T
+        if (!numChildLocks.containsKey(transNum)) { //no children with this T
         //if (capacity < 1) { //no children at all
             lockman.release(transaction, name);
+            removeChild(transaction, parent); //change parent's child num b/c one lock is released!
+        } else if (numChildLocks.get(transNum) == 0) { ////necessary? //there is no children that is held by T // basically the same..no? Just in case..
+            lockman.release(transaction, name);
             removeChild(transaction, parent);
-        } else {//but whether or not children taken by this transaction is matter? then how do we get each child's locktype
-            if (numChildLocks.containsKey(transNum)) {
-                Pair<String, Long> pair = name.getCurrentName();
-                Long thisName = pair.getSecond();
-                LockContext child = childContext(thisName);
-                List<Lock> childList = child.lockman.getLocks(name);
-                for (Lock l : childList) {
-                    if (parent != null) {
-                        if (LockType.parentLock(l.lockType).equals(parent.lockman.getLockType(transaction, name))) {
-                            lockman.release(transaction, name);
-                            removeChild(transaction, parent);
-                        } else {
-                            throw new InvalidLockException("the lock cannot be released.");
-                        }
-                    } else {
-                        if (LockType.parentLock(l.lockType).equals(lockman.getLockType(transaction, name))) {
-                            throw new InvalidLockException("the lock cannot be released.");
-                        }
-                    }
-                }
-            }
+        }
+        else {
+            throw new InvalidLockException("This lock cannot be released.");
         }
     }
+
+
     //from the test, we hold IS at database, S at table and try to release IS I thought we are trying releasing middle(?), not the top.
     private void removeChild(TransactionContext transaction, LockContext parent) {
         if (parent == null) {
@@ -400,7 +387,7 @@ public class LockContext {
         if (readonly) {
             throw new UnsupportedOperationException("This resource is read only.");
         }
-        if (getExplicitLockType(transaction) == LockType.NL) {
+        if (getExplicitLockType(transaction).equals(LockType.NL)) {
             throw new NoLockHeldException("This resource does not hold any lock.");
         }
         LockType thisType = getExplicitLockType(transaction);
@@ -408,7 +395,7 @@ public class LockContext {
         List<ResourceName> rName = new ArrayList<>();
         LockContext thisContext = fromResourceName(lockman, name);
 
-        if (thisType == LockType.X|| thisType == LockType.S) {
+        if (thisType.equals(LockType.X) || thisType.equals(LockType.S)) {
             if (numChildLocks.getOrDefault(transaction.getTransNum(), 0) == 0) {
                 return;
             } else {
@@ -421,7 +408,7 @@ public class LockContext {
                 }
             }
         }
-        if (thisType == LockType.IS) {
+        if (thisType.equals(LockType.IS)) {
             //add the lock on the same context to release
             rName.add(name);
             for (Lock l : lockList) {
@@ -436,7 +423,7 @@ public class LockContext {
 
             escalateLock(transaction, LockType.S, rName);
         }
-        if (thisType == LockType.IX || thisType == LockType.SIX) {
+        if (thisType.equals(LockType.IX) || thisType.equals(LockType.SIX)) {
             rName.add(name);
             for (Lock l : lockList) {
                     if (l.name.isDescendantOf(name)) {
@@ -471,26 +458,26 @@ public class LockContext {
         // TODO(proj4_part2): implement
         LockType eLockType = getExplicitLockType(transaction);//SIX, IX, IS, S, X, NL
         //curr=SIX
-        if (eLockType == LockType.IX) {
+        if (eLockType.equals(LockType.IX)) {
             if (hasSIXAncestor(transaction)) {
                 return LockType.SIX;
             } else {
                 return LockType.IX;
             }
         }
-        if (eLockType == LockType.IS) {
+        if (eLockType.equals(LockType.IS)) {
             return LockType.IS;
         }
-        if (eLockType == LockType.NL && parent != null) {
+        if (eLockType.equals(LockType.NL) && parent != null) {
             eLockType = parent.getEffectiveLockType(transaction);
 
-            if (eLockType == LockType.IS || eLockType == LockType.IX) {
+            if (eLockType.equals(LockType.IS) || eLockType.equals(LockType.IX)) {
                 return LockType.NL;
             }
-            if (eLockType == LockType.S) {
+            if (eLockType.equals(LockType.S)) {
                 return LockType.S;
             }
-            if (eLockType == LockType.X) {
+            if (eLockType.equals(LockType.X)) {
                 return LockType.X;
             }
 

@@ -82,7 +82,8 @@ public class LockManager {
          * Gives the transaction the lock LOCK. Assumes that the lock is compatible.
          * Updates lock on resource if the transaction already has a lock.
          */
-
+        //  I wasn't preserving the order of the locks in both transactionLocks and locks when I updated a lock i.e.
+        //  I was removing then adding the new lock instead of replacing it in its old position
         void grantOrUpdateLock(Lock lock) {
             // TODO(proj4_part1): implement
             Long transNum = lock.transactionNum;
@@ -290,7 +291,7 @@ public class LockManager {
             // If the releaseLock list is completely empty then you shouldn't throw the exception.
             if (!releaseLocks.isEmpty()) {
                 for (ResourceName n : releaseLocks) {
-                    if (getLockType(transaction, n) == LockType.NL) {
+                    if (getLockType(transaction, n).equals(LockType.NL)) {
                             throw new NoLockHeldException("No Lock Held Exception");
                     }
                 }
@@ -394,7 +395,7 @@ public class LockManager {
         // TODO(proj4_part1): implement
         // You may modify any part of this method.
         synchronized (this) {
-            if (getLockType(transaction, name) == LockType.NL) {
+            if (getLockType(transaction, name).equals(LockType.NL)) {
                 throw new NoLockHeldException("No Lock Held");
             }
             Boolean bool = false;
@@ -458,7 +459,7 @@ public class LockManager {
                 throw new DuplicateLockRequestException("Duplicated");
             }
             // if TRANSACTION has no lock on NAME
-            if (currLockType == LockType.NL) {
+            if (currLockType.equals(LockType.NL)) {
                 throw new NoLockHeldException("No Lock Held");
             }
             if ((!LockType.substitutable(newLockType, currLockType))) {
@@ -493,7 +494,7 @@ public class LockManager {
         ResourceEntry entry = getResourceEntry(name);
         if (!entry.locks.isEmpty()) {
             for (Lock l : entry.locks) {
-                if (l.transactionNum ==transaction.getTransNum()) {
+                if (l.transactionNum == transaction.getTransNum()) {
                     return l.lockType;
                 }
             }

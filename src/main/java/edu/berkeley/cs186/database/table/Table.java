@@ -2,6 +2,7 @@ package edu.berkeley.cs186.database.table;
 
 import java.util.*;
 
+import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.common.iterator.*;
 import edu.berkeley.cs186.database.common.Bits;
@@ -457,8 +458,10 @@ public class Table implements BacktrackingIterable<Record> {
     }
 
     // Iterators /////////////////////////////////////////////////////////////////
+    //
     public BacktrackingIterator<RecordId> ridIterator() {
         // TODO(proj4_part3): reduce locking overhead for table scans
+        LockUtil.ensureSufficientLockHeld(this.lockContext, LockType.S);
 
         BacktrackingIterator<Page> iter = heapFile.iterator();
         return new ConcatBacktrackingIterator<>(new PageIterator(iter, false));

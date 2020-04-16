@@ -203,6 +203,8 @@ public class Page {
          * @return this
          */
         @Override
+        //For anyone stuck on Task 1,
+        // make sure you are only calling your function that acquires locks up the hierarchy if you need to (i.e. it doesn't already have that lock or an equivalent lock).
         public Buffer get(byte[] dst, int offset, int length) {
             // TODO(proj4_part3): locking code here
             LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);

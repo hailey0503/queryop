@@ -854,6 +854,9 @@ public class Database implements AutoCloseable {
         public Iterator<Record> sortedScan(String tableName, String columnName) {
             // TODO(proj4_part3): scan locking
 
+            LockContext tableContext = getTableContext(tableName);
+            LockUtil.ensureSufficientLockHeld(tableContext, LockType.S);
+
             Table tab = getTable(tableName);
             try {
                 Pair<String, BPlusTree> index = resolveIndexFromName(tableName, columnName);
@@ -872,7 +875,8 @@ public class Database implements AutoCloseable {
         @Override
         public Iterator<Record> sortedScanFrom(String tableName, String columnName, DataBox startValue) {
             // TODO(proj4_part3): scan locking
-
+            LockContext tableContext = getTableContext(tableName);
+            LockUtil.ensureSufficientLockHeld(tableContext, LockType.S);
             Table tab = getTable(tableName);
             Pair<String, BPlusTree> index = resolveIndexFromName(tableName, columnName);
             return new RecordIterator(tab, index.getSecond().scanGreaterEqual(startValue));
@@ -1073,19 +1077,24 @@ public class Database implements AutoCloseable {
         @Override
         public void close() {
             // TODO(proj4_part3): release locks held by the transaction
-            List<Lock> locks = lockManager.getLocks(this);
+            TransactionContext transaction = TransactionContext.getTransaction();
+            List<Lock> locks = lockManager.getLocks(transaction);
+
             while (!locks.isEmpty()) {
                 for (Lock l : locks) {
                     LockContext lockContext = LockContext.fromResourceName(lockManager, l.name);
-                    if (lockContext.saturation(this) == 0) { //find the most bottom nodes and release
+                    if (lockContext.saturation(transaction) == 0) { //find the most bottom nodes and release
                         if (lockContext.parentContext() == null) {
-                            //
+                            //In this case with `parent` potentially being null, you should have code that makes sure parent isn't null before accessing any fields of that parentContext.
+                            // (e.g. accessing parent.numChildLocks will throw a NullPointerException if you don't ensure that parent isn't null beforehand).
+                            locks.remove(l);
+                            //locks.remove(l); no need to remove from recousename lock list?
+                        } else {
+                            lockContext.release(transaction);
                         }
-
-                        lockContext.release(this);
                     }
                 }
-                locks = lockManager.getLocks(this);
+                locks = lockManager.getLocks(transaction);
             }
         }
 
