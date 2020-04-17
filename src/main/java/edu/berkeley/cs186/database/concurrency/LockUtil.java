@@ -180,8 +180,8 @@ public class LockUtil {
 
         updateParent(transaction, lock, lockContext.parentContext());
         if (promo) {
-            //System.out.println(lock);
-            //System.out.println(thisType);
+            System.out.println("need to update " + lock);
+            System.out.println("curr type" + thisType);
             lockContext.promote(transaction, lock);
         } else {
             lockContext.acquire(transaction, lock);

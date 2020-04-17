@@ -88,7 +88,8 @@ public class BPlusTree {
      */
     public BPlusTree(BufferManager bufferManager, BPlusTreeMetadata metadata, LockContext lockContext) {
         // TODO(proj4_part3): B+ tree locking
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
+        lockContext.disableChildLocks();
         // Sanity checks.
         if (metadata.getOrder() < 0) {
             String msg = String.format(

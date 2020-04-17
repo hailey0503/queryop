@@ -122,7 +122,7 @@ public class Table implements BacktrackingIterable<Record> {
      */
     public Table(String name, Schema schema, HeapFile heapFile, LockContext lockContext) {
         // TODO(proj4_part3): table locking code
-
+        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         this.name = name;
         this.heapFile = heapFile;
         this.schema = schema;
@@ -321,15 +321,15 @@ public class Table implements BacktrackingIterable<Record> {
         // TODO(proj4_part3): modify for smarter locking
 
         validateRecordId(rid);
+
+        LockContext child = this.lockContext.childContext(rid.getPageNum());
+        LockUtil.ensureSufficientLockHeld(child, LockType.X);//for record?
         //exception?
         Record newRecord = schema.verify(values);
         Record oldRecord = getRecord(rid);
-        LockContext child = this.lockContext.childContext(rid.getPageNum());
-        LockUtil.ensureSufficientLockHeld(child, LockType.X);//for record?
-        //LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
+
         Page page = fetchPage(rid.getPageNum());
         try {
-            //LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
             insertRecord(page, rid.getEntryNum(), newRecord);
 
             this.stats.removeRecord(oldRecord);
@@ -352,7 +352,7 @@ public class Table implements BacktrackingIterable<Record> {
         validateRecordId(rid);
         LockContext child = this.lockContext.childContext(rid.getPageNum());
         LockUtil.ensureSufficientLockHeld(child, LockType.X);//for record?
-        //LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
+
         Page page = fetchPage(rid.getPageNum());
         try {
             Record record = getRecord(rid);
@@ -360,8 +360,6 @@ public class Table implements BacktrackingIterable<Record> {
             byte[] bitmap = getBitMap(page);
             Bits.setBit(bitmap, rid.getEntryNum(), Bits.Bit.ZERO);
             writeBitMap(page, bitmap);
-
-           // LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
 
             stats.removeRecord(record);
             int numRecords = numRecordsPerPage == 1 ? 0 : numRecordsOnPage(page);
