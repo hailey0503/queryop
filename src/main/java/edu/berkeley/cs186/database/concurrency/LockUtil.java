@@ -72,6 +72,7 @@ public class LockUtil {
             }
             } else { //this context is DB
                 lockContext.acquire(transaction, lockType);
+                return;
             }
 
              //do we have to care the parent? ex, locktype X, parent(table) S then need SIX or locktype X for page level, but S at db.
@@ -164,18 +165,27 @@ public class LockUtil {
     //@Anon. Calc 2, which part of the spec are you referring to? Because S and X cannot have descendant locks, you will have to call escalate most of the times in LockUtil.
     // X is more permissive than SIX, as X is more permissive than S and IX (and SIX is just the combination of the two) so your promotion idea also seems to be correct
     public static void updateParent(TransactionContext transaction, LockType lock, LockContext lockContext) {
+        boolean promo = false;
         if (lockContext == null) {
             return;
         }
-        LockType thisType = lockContext.getEffectiveLockType(transaction); //IS
+        LockType thisType = lockContext.getEffectiveLockType(transaction);
 
         if (!thisType.equals(LockType.NL)) {
-            return;
+            promo = true;
+            if (thisType.equals(lock)) {
+                return;
+            }
         }
 
         updateParent(transaction, lock, lockContext.parentContext());
-        lockContext.acquire(transaction, lock);
-
+        if (promo) {
+            //System.out.println(lock);
+            //System.out.println(thisType);
+            lockContext.promote(transaction, lock);
+        } else {
+            lockContext.acquire(transaction, lock);
+        }
     }
 
     public static void changeParent(TransactionContext transaction, LockType lock, LockContext lockContext) {

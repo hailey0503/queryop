@@ -122,8 +122,10 @@ public class PageDirectory implements HeapFile {
         if (requiredSpace > EFFECTIVE_PAGE_SIZE - emptyPageMetadataSize) {
             throw new IllegalArgumentException("requesting page with more space than the size of the page");
         }
-        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
+
         Page page = this.firstHeader.loadPageWithSpace(requiredSpace);
+        LockContext child = this.lockContext.childContext(page.getPageNum());
+        LockUtil.ensureSufficientLockHeld(child, LockType.X);//for record?
 
         return new DataPage(pageDirectoryId, page);
     }

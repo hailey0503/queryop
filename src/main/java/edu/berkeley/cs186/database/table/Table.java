@@ -112,6 +112,8 @@ public class Table implements BacktrackingIterable<Record> {
     // The lock context of the table.
     private LockContext lockContext;
 
+    private boolean autoEscalate;
+
     // Constructors //////////////////////////////////////////////////////////////
     /**
      * Load a table named `name` with schema `schema` from `heapFile`. `lockContext`
@@ -132,6 +134,7 @@ public class Table implements BacktrackingIterable<Record> {
 
         this.stats = new TableStats(this.schema, this.numRecordsPerPage);
         this.numRecords = 0;
+        this.autoEscalate = false;
 
         Iterator<Page> iter = this.heapFile.iterator();
         while(iter.hasNext()) {
@@ -321,8 +324,9 @@ public class Table implements BacktrackingIterable<Record> {
         //exception?
         Record newRecord = schema.verify(values);
         Record oldRecord = getRecord(rid);
-        //LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);
-        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
+        LockContext child = this.lockContext.childContext(rid.getPageNum());
+        LockUtil.ensureSufficientLockHeld(child, LockType.X);//for record?
+        //LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         Page page = fetchPage(rid.getPageNum());
         try {
             //LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
@@ -346,8 +350,9 @@ public class Table implements BacktrackingIterable<Record> {
         // TODO(proj4_part3): modify for smarter locking
 
         validateRecordId(rid);
-        //LockUtil.ensureSufficientLockHeld(lockContext, LockType.S);
-        LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
+        LockContext child = this.lockContext.childContext(rid.getPageNum());
+        LockUtil.ensureSufficientLockHeld(child, LockType.X);//for record?
+        //LockUtil.ensureSufficientLockHeld(lockContext, LockType.X);
         Page page = fetchPage(rid.getPageNum());
         try {
             Record record = getRecord(rid);
@@ -446,6 +451,7 @@ public class Table implements BacktrackingIterable<Record> {
      * has at least 10 pages should escalate to a table-level lock before any locks are requested.
      */
     public void enableAutoEscalate() {
+        autoEscalate = true;
         // TODO(proj4_part3): implement
     }
 
@@ -454,6 +460,7 @@ public class Table implements BacktrackingIterable<Record> {
      * an automatic escalation to a table-level lock.
      */
     public void disableAutoEscalate() {
+        autoEscalate = false;
         // TODO(proj4_part3): implement
     }
 
@@ -462,6 +469,8 @@ public class Table implements BacktrackingIterable<Record> {
     public BacktrackingIterator<RecordId> ridIterator() {
         // TODO(proj4_part3): reduce locking overhead for table scans
         LockUtil.ensureSufficientLockHeld(this.lockContext, LockType.S);
+
+
 
         BacktrackingIterator<Page> iter = heapFile.iterator();
         return new ConcatBacktrackingIterator<>(new PageIterator(iter, false));

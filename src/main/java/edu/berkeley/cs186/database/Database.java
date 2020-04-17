@@ -1077,24 +1077,27 @@ public class Database implements AutoCloseable {
         @Override
         public void close() {
             // TODO(proj4_part3): release locks held by the transaction
-            TransactionContext transaction = TransactionContext.getTransaction();
-            List<Lock> locks = lockManager.getLocks(transaction);
+            //TransactionContext transaction = TransactionContext.getTransaction();
+            //if (transaction == null) {
+            //    transaction = this;
+            //}
+            List<Lock> locks = lockManager.getLocks(this);
 
             while (!locks.isEmpty()) {
                 for (Lock l : locks) {
                     LockContext lockContext = LockContext.fromResourceName(lockManager, l.name);
-                    if (lockContext.saturation(transaction) == 0) { //find the most bottom nodes and release
+                    if (lockContext.saturation(this) == 0) { //find the most bottom nodes and release
                         if (lockContext.parentContext() == null) {
                             //In this case with `parent` potentially being null, you should have code that makes sure parent isn't null before accessing any fields of that parentContext.
                             // (e.g. accessing parent.numChildLocks will throw a NullPointerException if you don't ensure that parent isn't null beforehand).
-                            locks.remove(l);
+                            lockContext.release(this);
                             //locks.remove(l); no need to remove from recousename lock list?
                         } else {
-                            lockContext.release(transaction);
+                            lockContext.release(this);
                         }
                     }
                 }
-                locks = lockManager.getLocks(transaction);
+                locks = lockManager.getLocks(this);
             }
         }
 
