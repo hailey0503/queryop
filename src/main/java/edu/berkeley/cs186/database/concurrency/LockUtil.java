@@ -1,6 +1,7 @@
 package edu.berkeley.cs186.database.concurrency;
 // If you see this line, you have successfully pulled the latest changes from the skeleton for proj4!
 import edu.berkeley.cs186.database.TransactionContext;
+import edu.berkeley.cs186.database.table.Table;
 
 import java.util.List;
 
@@ -128,8 +129,16 @@ public class LockUtil {
                     lockContext.promote(transaction, lockType);
                     return;
                 } else if (lockType.equals(LockType.S)) {
-                    lockContext.escalate(transaction);
-                    return;
+                    // if check, true, tableContext.escalate(transcation){ else
+                    LockContext tableContext = findTableContext(lockContext);
+                    if (isTableEscalate(transaction, tableContext)) {
+                        tableContext.escalate(transaction);
+                        return;
+
+                    } else {
+                        lockContext.escalate(transaction);
+                        return;
+                    }
                 }
             }
             // lockType S ->IX should become SIX.
@@ -153,8 +162,15 @@ public class LockUtil {
                     lockContext.promote(transaction, LockType.SIX);
                     return;
                 } else if (lockType.equals(LockType.X)) {
-                    lockContext.escalate(transaction);
-                    return;
+                    LockContext tableContext = findTableContext(lockContext);
+                    if (isTableEscalate(transaction, tableContext)) {
+                        tableContext.escalate(transaction);
+                        return;
+
+                    } else {
+                        lockContext.escalate(transaction);
+                        return;
+                    }
                 }
             }
         }
@@ -199,6 +215,40 @@ public class LockUtil {
             lockContext.promote(transaction, lock);
         }
     }
+    private static LockContext findTableContext(LockContext lockContext) {
+        ResourceName rName = lockContext.getResourceName();
+        Long name = rName.getCurrentName().getSecond();
+        if (lockContext.parentContext() == null) {
+            return lockContext.childContext(name);
+        } else {
+            LockContext thisContext = lockContext;
+            while (thisContext.parentContext() != null) {
+                thisContext = thisContext.parentContext();
+            }
+            return thisContext.childContext(name);
+        }
+
+    }
+    private static boolean isTableEscalate(TransactionContext transaction, LockContext tableContext) {
+        String tableName =  tableContext.getResourceName().getCurrentName().getFirst();
+        Table table = transaction.getTable(tableName);
+        if ((tableContext.saturation(transaction) >= 0.2) && table.getNumDataPages() > 10 ) {
+            //&& Table.isAutoEscalate() = true) {
+            return true;
+        }
+        return false;
+    }
+    /*
+    1. find table context
+    2. if {( tablecontext.saturation(transaction) >= 0.2)
+    3. tableName = tablecontext.getResourceName().getfirst()
+        transaction.getTable(tableName(string)) <--Table
+        (Table.getNumDataPages() <--number of pages > 10),
+        (autoescalate = true)}
+
+    */
+
+
 
     // TODO(proj4_part2): add helper methods as you see fit
 }

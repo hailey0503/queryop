@@ -4,6 +4,7 @@ import java.util.*;
 
 import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
+import edu.berkeley.cs186.database.TransactionContext;
 import edu.berkeley.cs186.database.common.iterator.*;
 import edu.berkeley.cs186.database.common.Bits;
 import edu.berkeley.cs186.database.common.Buffer;
@@ -253,6 +254,8 @@ public class Table implements BacktrackingIterable<Record> {
      * first free page has bitmap 0b11101000, then the record is inserted into
      * the page with index 3 and the bitmap is updated to 0b11111000.
      */
+
+
     public synchronized RecordId addRecord(List<DataBox> values) {
         Record record = schema.verify(values);
         Page page = heapFile.getPageWithSpace(schema.getSizeInBytes());
@@ -448,6 +451,9 @@ public class Table implements BacktrackingIterable<Record> {
      * that hold locks on at least 20% of the locks on the table's pages when this table
      * has at least 10 pages should escalate to a table-level lock before any locks are requested.
      */
+    public boolean isAutoEscalate() {
+        return autoEscalate;
+    }
     public void enableAutoEscalate() {
         autoEscalate = true;
         // TODO(proj4_part3): implement

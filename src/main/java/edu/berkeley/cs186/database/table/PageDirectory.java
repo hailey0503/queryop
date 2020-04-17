@@ -85,6 +85,9 @@ public class PageDirectory implements HeapFile {
      */
     public PageDirectory(BufferManager bufferManager, int partNum, long pageNum,
                          short emptyPageMetadataSize, LockContext lockContext) {
+        //PageDirectory#getNumDataPages() and LockContext#capacity(), can just set LockContext’s capacity through function call
+
+
         // TODO(proj4_part3): update table capacity
         this.bufferManager = bufferManager;
         this.partNum = partNum;
