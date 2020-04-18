@@ -453,7 +453,7 @@ public class Table implements BacktrackingIterable<Record> {
      */
 
     public void enableAutoEscalate() {
-        //autoEscalate = true;
+        lockContext.setAutoEscalate(true);
         // TODO(proj4_part3): implement
     }
 
@@ -462,7 +462,7 @@ public class Table implements BacktrackingIterable<Record> {
      * an automatic escalation to a table-level lock.
      */
     public void disableAutoEscalate() {
-        //autoEscalate = false;
+        lockContext.setAutoEscalate(false);
         // TODO(proj4_part3): implement
     }
 

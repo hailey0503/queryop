@@ -62,7 +62,7 @@ public class LockContext {
         this.capacity = -1;
         this.children = new ConcurrentHashMap<>();
         this.childLocksDisabled = readonly;
-        this.autoEscalate = false;
+        this.autoEscalate = true;
 
     }
 
@@ -254,13 +254,13 @@ public class LockContext {
         if (readonly) {
             throw new UnsupportedOperationException("This resource is read only.");
         }
-        if (getExplicitLockType(transaction) == LockType.NL) {
+        if (getEffectiveLockType(transaction).equals(LockType.NL)) {
             throw new NoLockHeldException("This resource does not hold any lock.");
         }
-        if (lockman.getLock(transNum, lockman.getLocks(name)).lockType.equals(newLockType)) {
+        if (getEffectiveLockType(transaction).equals(newLockType)) {
             throw new DuplicateLockRequestException("Duplicate Request.");
         }
-        LockType thisType = getExplicitLockType(transaction);
+        LockType thisType = getEffectiveLockType(transaction);
         LockContext context = fromResourceName(lockman, name);
         boolean substituable = false;
         boolean promotable = false;
@@ -355,7 +355,7 @@ public class LockContext {
         if (getExplicitLockType(transaction).equals(LockType.NL)) {
             throw new NoLockHeldException("This resource does not hold any lock.");
         }
-        LockType thisType = getExplicitLockType(transaction);
+        LockType thisType = getExplicitLockType(transaction);///???4/18
         List<Lock> lockList = lockman.getLocks(transaction);
         List<ResourceName> rName = new ArrayList<>();
         LockContext thisContext = fromResourceName(lockman, name);

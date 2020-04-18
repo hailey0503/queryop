@@ -57,21 +57,28 @@ public class LockUtil {
 
         if (effectiveLock.equals(LockType.NL)) {
             if (hasParent) {
-            if (LockType.canBeParentLock(parentLock, lockType)) {
-                lockContext.acquire(transaction, lockType);
-                return;
-            } else {
-                potentialParentLock = LockType.parentLock(lockType);
-                if (parentLock.equals(LockType.NL)) {
-                    updateParent(transaction, potentialParentLock, parentContext);
+                if (isTableEscalate(transaction, parentContext)) {
+                    //call table context and escalate on it
+                    System.out.println("parent " + parentContext.getExplicitLockType(transaction));
+                    System.out.println("curr type" + lockType);
+                    parentContext.escalate(transaction);
+                    return;
+                }
+                if (LockType.canBeParentLock(parentLock, lockType)) {
                     lockContext.acquire(transaction, lockType);
                     return;
                 } else {
-                    changeParent(transaction, potentialParentLock, parentContext);
-                    lockContext.acquire(transaction, lockType);
-                    return;
+                    potentialParentLock = LockType.parentLock(lockType);
+                    if (parentLock.equals(LockType.NL)) {
+                        updateParent(transaction, potentialParentLock, parentContext);
+                        lockContext.acquire(transaction, lockType);
+                        return;
+                    } else {
+                        changeParent(transaction, potentialParentLock, parentContext);
+                        lockContext.acquire(transaction, lockType);
+                        return;
+                    }
                 }
-            }
             } else { //this context is DB
                 lockContext.acquire(transaction, lockType);
                 return;
@@ -80,29 +87,18 @@ public class LockUtil {
              //do we have to care the parent? ex, locktype X, parent(table) S then need SIX or locktype X for page level, but S at db.
         }
 
-       /* if (LockType.substitutable(effectiveLock, lockType)) {
-            return;
-        }*/
-
-        //if (current effective locktype substituable locktype passing in) -> don't have to do anything
-        //if (lockContext autoescalate= true)
-        //
-
-        /*
-        if (!LockType.substitutable(lockType, effectiveLock)) {
-            if (lockContext.getAutoEscalate() == true) {
-
-            }
-        }
-       */
-
         if (LockType.substitutable(lockType, effectiveLock)) {
             if (hasParent) {
                 potentialParentLock = LockType.parentLock(lockType);
                 changeParent(transaction, potentialParentLock, parentContext);
+                if (explicitLock.equals(LockType.NL)) {
+                    lockContext.acquire(transaction, lockType);
+                    return;
+                } else {
+                    lockContext.promote(transaction, lockType);
+                    return;
+                }
             }
-            lockContext.promote(transaction, lockType);
-            return;
         } else {
             if (effectiveLock.equals(LockType.SIX)) {
                 if (lockType.equals(LockType.X)) { //SIX->X X is more permissive?
@@ -133,6 +129,15 @@ public class LockUtil {
             }
             if (effectiveLock.equals(LockType.X)) {
                 return;
+            }
+            //lockType we are trying to ensure is a X type and the parentContext lockType is a S. In this case, we have to promote the parent type to a SIX,
+            // before we acquire the X lock.
+            if (lockType.equals(LockType.X)) {
+                if (parentLock.equals(LockType.S)) {
+                    parentContext.promote(transaction, LockType.SIX);
+                    lockContext.acquire(transaction, lockType);
+                    return;
+                }
             }
             if (effectiveLock.equals(LockType.IS)) {
                 if (lockType.equals(LockType.X)) {
@@ -233,7 +238,7 @@ public class LockUtil {
 
     //
     private static boolean isTableEscalate(TransactionContext transaction, LockContext lockContext) {
-        if ((lockContext.saturation(transaction) >= 0.2) && (lockContext.capacity() >= 10) && (lockContext.autoEscalate = true)) {
+        if ((lockContext.saturation(transaction) >= 0.2) && (lockContext.capacity() >= 10) && (lockContext.getAutoEscalate())) {
             return true;
         }
         return false;
