@@ -3,6 +3,7 @@ package edu.berkeley.cs186.database.concurrency;
 import edu.berkeley.cs186.database.Transaction;
 import edu.berkeley.cs186.database.TransactionContext;
 import edu.berkeley.cs186.database.common.Pair;
+import edu.berkeley.cs186.database.table.Table;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,6 +36,8 @@ public class LockContext {
     // field to override the return value for capacity().
     protected int capacity;
 
+    protected boolean autoEscalate;
+
     // You should not modify or use this directly.
     protected final Map<Long, LockContext> children;
 
@@ -59,6 +62,7 @@ public class LockContext {
         this.capacity = -1;
         this.children = new ConcurrentHashMap<>();
         this.childLocksDisabled = readonly;
+        this.autoEscalate = false;
 
     }
 
@@ -315,46 +319,6 @@ public class LockContext {
      * @throws NoLockHeldException if TRANSACTION has no lock at this level
      * @throws UnsupportedOperationException if context is readonly
      */
-    // Note that escalating to an X lock always "works" in this regard:
-    // having a coarse X lock definitely encompasses having a bunch of finer locks.
-    // However, this introduces other complications:
-    // if the transaction previously held only finer S locks, it would not have the IX locks required to hold an X lock,
-    // and escalating to an X reduces the amount of concurrency allowed unnecessarily.
-    // We therefore require that escalate only escalate to the least permissive lock type (out of {S, X})--> S then
-    // that still encompasses the replaced finer locks (so if we only had IS/S locks, we should escalate to S, not X).
-    //
-    // Also note that since we are only escalating to S or X, a transaction that only has IS(database) would escalate to S(database).
-
-    // Though a transaction that only has IS(database) technically has no locks at lower levels,
-    // the only point in keeping an intent lock at this level would be to acquire a normal lock at a lower level,
-    // and the point in escalating is to avoid having locks at a lower level. Therefore, we don't allow escalating to intent locks (IS/IX/SIX).
-
-    //Is it true that for escalate, if the current context has IS, we escalate it to S.
-    //If the current context has IX, we escalate it to X. And if the current context has SIX, we escalate it to X.
-    // If the current context has S, we simply delete its descendant locks.
-    // If the current context has X, we simply delete its descendant locks.
-
-    // Jamie Gu: That looks fine to me.
-    // Just make sure that you always need to delete descendant locks when you escalate from a non-S/X lock.
-    // And when current lock is S/X, there shouldn't be any descendant locks.
-
-
-    //I'm a little confused on how escalation should work. How do we tell if we escalate to X instead of S and vice versa?
-    //"We therefore require that escalate only escalate to the least permissive lock type (out of {S, X})
-    // that still encompasses the replaced finer locks (so if we only had IS/S locks, we should escalate to S, not X)."
-    //
-    // what do u mean we have to check what level we are on. So basically if the current lock is either and X or S there is no escalation needed to be done.
-    // We also don't need to do escalation if there are no children.
-    // When we escalate we just escalate either X or S depending on what the child lock has?
-
-    // Jasmine Le 2 days ago To the first question of Anon. Comp 2, escalation can also depend on the lock at the current context (i.e. IX, IS, SIX, S, X).
-    // A counter example of only checking the children / descendant contexts and not the "current" context is
-    // if your current context is an IX lock, but your descendants are only IS and S locks.
-    // Technically, you should escalate to an X lock, but if you only check descendants, you would only escalate to an S lock.
-    //
-    //To answer the rest of the questions, "You should not make any mutating calls if the locks held by the transaction do not change."
-    // That's when you shouldn't escalate. Even if the current context has no locks on descendants, if there's an intent lock on the context, would escalation happen?
-    //The last question is related to the first question.
 
     //We can only escalate to either an S or an X lock.  It seems like we have to consider the parent and the descendants when figuring out which type to escalate to.
     // My parent matrix has different values for who can be a parent to an S lock or an X lock specifically if the parent is an IS or an SIX.
@@ -633,5 +597,15 @@ public class LockContext {
     public String toString() {
         return "LockContext(" + name.toString() + ")";
     }
+
+    public synchronized boolean getAutoEscalate() {
+        return autoEscalate;
+    }
+    public synchronized void setAutoEscalate(boolean bool) {
+        autoEscalate = bool;
+    }
+
+    //there is an access to tablecontext in Table.java??
+    // make this returning tableContext
 }
 

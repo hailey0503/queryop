@@ -113,7 +113,7 @@ public class Table implements BacktrackingIterable<Record> {
     // The lock context of the table.
     private LockContext lockContext;
 
-    private boolean autoEscalate;
+    //private boolean autoEscalate;
 
     // Constructors //////////////////////////////////////////////////////////////
     /**
@@ -135,7 +135,7 @@ public class Table implements BacktrackingIterable<Record> {
 
         this.stats = new TableStats(this.schema, this.numRecordsPerPage);
         this.numRecords = 0;
-        this.autoEscalate = false;
+        //this.autoEscalate = false;
 
         Iterator<Page> iter = this.heapFile.iterator();
         while(iter.hasNext()) {
@@ -451,11 +451,9 @@ public class Table implements BacktrackingIterable<Record> {
      * that hold locks on at least 20% of the locks on the table's pages when this table
      * has at least 10 pages should escalate to a table-level lock before any locks are requested.
      */
-    public boolean isAutoEscalate() {
-        return autoEscalate;
-    }
+
     public void enableAutoEscalate() {
-        autoEscalate = true;
+        //autoEscalate = true;
         // TODO(proj4_part3): implement
     }
 
@@ -464,7 +462,7 @@ public class Table implements BacktrackingIterable<Record> {
      * an automatic escalation to a table-level lock.
      */
     public void disableAutoEscalate() {
-        autoEscalate = false;
+        //autoEscalate = false;
         // TODO(proj4_part3): implement
     }
 

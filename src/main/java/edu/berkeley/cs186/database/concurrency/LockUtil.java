@@ -40,6 +40,7 @@ public class LockUtil {
         Boolean hasParent = false;
         LockType potentialParentLock = null;
 
+
         if (lockContext.parentContext() != null) {
             //doesn't actually get parent locktype ????
             parentContext = lockContext.parentContext(); //actual lock type on the context<---use this for checking parent type
@@ -82,6 +83,19 @@ public class LockUtil {
        /* if (LockType.substitutable(effectiveLock, lockType)) {
             return;
         }*/
+
+        //if (current effective locktype substituable locktype passing in) -> don't have to do anything
+        //if (lockContext autoescalate= true)
+        //
+
+        /*
+        if (!LockType.substitutable(lockType, effectiveLock)) {
+            if (lockContext.getAutoEscalate() == true) {
+
+            }
+        }
+       */
+
         if (LockType.substitutable(lockType, effectiveLock)) {
             if (hasParent) {
                 potentialParentLock = LockType.parentLock(lockType);
@@ -96,17 +110,17 @@ public class LockUtil {
                     //changeParent(transaction, parentLock, lockContext.parentContext());
                     //lockContext.promote(transaction, lockType);
                     return;
-                    }
-                    // lockType S -> SIX should remain the same.
-                    else if (lockType.equals(LockType.S)) {
-                        return;
-                    }
                 }
-                // S lock on the database, and then request an X lock on a page? Should this turn the S lock into a SIX lock and grant the X lock to the page?
-                // how do we take care of parents?
+                // lockType S -> SIX should remain the same.
+                else if (lockType.equals(LockType.S)) {
+                    return;
+                }
+            }
+            // S lock on the database, and then request an X lock on a page? Should this turn the S lock into a SIX lock and grant the X lock to the page?
+            // how do we take care of parents?
 
-                // every time curr lock type is promoted, check parent by canBeParent then change the parent if it can't be parent of the lock type just promoted?
-                //what about escalate??
+            // every time curr lock type is promoted, check parent by canBeParent then change the parent if it can't be parent of the lock type just promoted?
+            //what about escalate??
             if (effectiveLock.equals(LockType.S)) {
                 if (lockType.equals(LockType.X)) {
                     if (hasParent) {
@@ -129,18 +143,20 @@ public class LockUtil {
                     lockContext.promote(transaction, lockType);
                     return;
                 } else if (lockType.equals(LockType.S)) {
-                    // if check, true, tableContext.escalate(transcation){ else
-                    LockContext tableContext = findTableContext(lockContext);
-                    if (isTableEscalate(transaction, tableContext)) {
-                        tableContext.escalate(transaction);
+                    //String tableName = lockContext.tableContext(lockContext);// how can I use table name (String)??
+                    if (isTableEscalate(transaction, parentContext)) {
+                        //call table context and escalate on it
+                        System.out.println("parent " + parentContext.getExplicitLockType(transaction));
+                        System.out.println("curr type" + lockType);
+                        parentContext.escalate(transaction);
                         return;
-
                     } else {
                         lockContext.escalate(transaction);
                         return;
                     }
                 }
             }
+        }
             // lockType S ->IX should become SIX.
             if (effectiveLock.equals(LockType.IX)) {
                 if (lockType.equals(LockType.S)) {
@@ -162,19 +178,21 @@ public class LockUtil {
                     lockContext.promote(transaction, LockType.SIX);
                     return;
                 } else if (lockType.equals(LockType.X)) {
-                    LockContext tableContext = findTableContext(lockContext);
-                    if (isTableEscalate(transaction, tableContext)) {
-                        tableContext.escalate(transaction);
+                    //String tableName = lockContext.tableContext(lockContext);
+                    if (isTableEscalate(transaction, parentContext)) {
+                        //call table context and escalate on it
+                        parentContext.escalate(transaction);
                         return;
-
-                    } else {
+                    }
+                    else {
                         lockContext.escalate(transaction);
                         return;
                     }
+
                 }
             }
         }
-    }
+
 
     // X is more permissive than SIX, but you can't have IS(table) and IX(page1) because IS cannot be parent of IX.
     //
@@ -193,16 +211,13 @@ public class LockUtil {
                 return;
             }
         }
-
         updateParent(transaction, lock, lockContext.parentContext());
         if (promo) {
-            System.out.println("need to update " + lock);
-            System.out.println("curr type" + thisType);
             lockContext.promote(transaction, lock);
-        } else {
-            lockContext.acquire(transaction, lock);
+            } else {
+                lockContext.acquire(transaction, lock);
+            }
         }
-    }
 
     public static void changeParent(TransactionContext transaction, LockType lock, LockContext lockContext) {
         if (lockContext == null) {
@@ -215,28 +230,14 @@ public class LockUtil {
             lockContext.promote(transaction, lock);
         }
     }
-    private static LockContext findTableContext(LockContext lockContext) {
-        ResourceName rName = lockContext.getResourceName();
-        Long name = rName.getCurrentName().getSecond();
-        if (lockContext.parentContext() == null) {
-            return lockContext.childContext(name);
-        } else {
-            LockContext thisContext = lockContext;
-            while (thisContext.parentContext() != null) {
-                thisContext = thisContext.parentContext();
-            }
-            return thisContext.childContext(name);
-        }
 
-    }
-    private static boolean isTableEscalate(TransactionContext transaction, LockContext tableContext) {
-        String tableName =  tableContext.getResourceName().getCurrentName().getFirst();
-        Table table = transaction.getTable(tableName);
-        if ((tableContext.saturation(transaction) >= 0.2) && table.getNumDataPages() > 10 ) {
-            //&& Table.isAutoEscalate() = true) {
+    //
+    private static boolean isTableEscalate(TransactionContext transaction, LockContext lockContext) {
+        if ((lockContext.saturation(transaction) >= 0.2) && (lockContext.capacity() >= 10) && (lockContext.autoEscalate = true)) {
             return true;
         }
         return false;
+
     }
     /*
     1. find table context
@@ -245,10 +246,7 @@ public class LockUtil {
         transaction.getTable(tableName(string)) <--Table
         (Table.getNumDataPages() <--number of pages > 10),
         (autoescalate = true)}
-
     */
-
-
-
+    //but how do we know we are on the page?
     // TODO(proj4_part2): add helper methods as you see fit
 }
