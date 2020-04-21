@@ -111,7 +111,19 @@ public class ARIESRecoveryManager implements RecoveryManager {
     @Override
     public long commit(long transNum) {
         // TODO(proj5): implement
-        return -1L;
+        TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+        assert (transactionEntry != null);
+
+        long prevLSN = transactionEntry.lastLSN;
+        CommitTransactionLogRecord commitLogRecord = new CommitTransactionLogRecord(transNum, prevLSN);
+        long currLSN = logManager.appendToLog(commitLogRecord);
+        assert (prevLSN <= currLSN);
+        logManager.flushToLSN(currLSN);
+        transactionEntry.lastLSN = currLSN;//update LSN of the transaction
+        transactionEntry.transaction.setStatus(Transaction.Status.COMMITTING);
+        //do we keep track flushedLSN?
+
+        return currLSN;
     }
 
     /**
@@ -126,7 +138,18 @@ public class ARIESRecoveryManager implements RecoveryManager {
     @Override
     public long abort(long transNum) {
         // TODO(proj5): implement
-        return -1L;
+        TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+        assert (transactionEntry != null);
+
+        long prevLSN = transactionEntry.lastLSN;
+        AbortTransactionLogRecord abortLogRecord = new AbortTransactionLogRecord(transNum, prevLSN);
+        long currLSN = logManager.appendToLog(abortLogRecord);
+        //Undo all changes made by the transaction. Start from lastLSN, and go backwards via prevLSN
+        //Undo all log records that can be undone by adding CLRs to log
+        transactionEntry.lastLSN = currLSN;//update LSN of the transaction
+        transactionEntry.transaction.setStatus(Transaction.Status.ABORTING);
+
+        return currLSN;
     }
 
     /**
@@ -143,7 +166,23 @@ public class ARIESRecoveryManager implements RecoveryManager {
     @Override
     public long end(long transNum) {
         // TODO(proj5): implement
-        return -1L;
+        TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+        assert (transactionEntry != null);
+
+        long lastLSN = transactionEntry.lastLSN;
+        long prevLSN = transactionEntry.lastLSN;
+        LogRecord logRecord = logManager.fetchLogRecord(prevLSN);
+
+        if (logRecord.isUndoable()) {
+            Pair<LogRecord, Boolean> CLR = logRecord.undo(prevLSN);
+            CLR.getFirst().redo(diskSpaceManager, bufferManager);
+            lastLSN = CLR.getFirst().getLSN();
+        }
+        transactionEntry.lastLSN = lastLSN;
+        EndTransactionLogRecord endLogRecord = new EndTransactionLogRecord(transNum, lastLSN); ///last or prev
+        long currLSN = logManager.appendToLog(endLogRecord);
+
+        return currLSN;
     }
 
     /**
@@ -191,12 +230,21 @@ public class ARIESRecoveryManager implements RecoveryManager {
      * @param after bytes starting at pageOffset after the write
      * @return LSN of last record written to log
      */
+    //UpdatePageLogeLogRecord and change the parameters to make it do undo or redo.
+    //Take a look at the fromBytes method and how many bytes it uses, how many bytes an EFFECTIVE_PAGE_SIZE is,
+    //and consider the fact that you will be writing before and after to the record (both of which have the same length).
+    //You can also deduce the behavior of undo and redo from looking at the appropriate method's isUndoable method, as mentioned above.
     @Override
     public long logPageWrite(long transNum, long pageNum, short pageOffset, byte[] before,
                              byte[] after) {
         assert (before.length == after.length);
 
         // TODO(proj5): implement
+        TransactionTableEntry transactionEntry = transactionTable.get(transNum);
+        assert (transactionEntry != null);
+        //if ( > (BufferManager.EFFECTIVE_PAGE_SIZE / 2)) {
+
+        //}
         return -1L;
     }
 
