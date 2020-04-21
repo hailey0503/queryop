@@ -631,6 +631,11 @@ public class Database implements AutoCloseable {
         boolean mayNeedToCreate = !tableInfoLookup.containsKey(tableName);
         if (mayNeedToCreate) {
             // TODO(proj4_part3): acquire all locks needed on database/information_schema.tables before compute()
+            //request an X lock on the LockContext returned by getTableInfoContext().
+
+            LockContext tableInfoContext = getTableInfoContext();
+            LockUtil.ensureSufficientLockHeld(tableInfoContext, lockType);
+
             tableInfoLookup.compute(tableName, (tableName_, recordId) -> {
                 if (recordId != null) { // record created between containsKey call and this
                     return recordId;
@@ -641,6 +646,11 @@ public class Database implements AutoCloseable {
         }
 
         // TODO(proj4_part3): acquire all locks needed on the row in information_schema.tables
+        //tableInfoLookup to get the pageNum of tableName.
+        RecordId rid = tableInfoLookup.get(tableName);
+        Long pageNum = rid.getPageNum();
+        LockContext childContext = getTableInfoContext().childContext(pageNum);
+        LockUtil.ensureSufficientLockHeld(childContext, lockType);
     }
 
     private TableInfoRecord getTableMetadata(String tableName) {
@@ -659,6 +669,9 @@ public class Database implements AutoCloseable {
         boolean mayNeedToCreate = !indexInfoLookup.containsKey(indexName);
         if (mayNeedToCreate) {
             // TODO(proj4_part3): acquire all locks needed on database/information_schema.indices before compute()
+            LockContext indexInfoContext = getIndexInfoContext();
+            LockUtil.ensureSufficientLockHeld(indexInfoContext, lockType);
+
             indexInfoLookup.compute(indexName, (indexName_, recordId) -> {
                 if (recordId != null) { // record created between containsKey call and this
                     return recordId;
@@ -678,6 +691,10 @@ public class Database implements AutoCloseable {
         }
 
         // TODO(proj4_part3): acquire all locks needed on the row in information_schema.indices
+        RecordId rid = indexInfoLookup.get(indexName);
+        Long pageNum = rid.getPageNum();
+        LockContext childContext = getIndexInfoContext().childContext(pageNum);
+        LockUtil.ensureSufficientLockHeld(childContext, lockType);
     }
 
     private BPlusTreeMetadata getIndexMetadata(String tableName, String columnName) {
@@ -1126,6 +1143,8 @@ public class Database implements AutoCloseable {
 
             // TODO(proj4_part3): add locking
 
+            //lockIndexMetadata(indexName, LockType.X);
+
             BPlusTreeMetadata metadata = getIndexMetadata(tableName, columnName);
             if (metadata == null) {
                 throw new DatabaseException("no index with name " + indexName);
@@ -1154,6 +1173,7 @@ public class Database implements AutoCloseable {
             }
 
             // TODO(proj4_part3): add locking
+            //lockTableMetadata(tableName, LockType.IX);
 
             TableInfoRecord record = getTableMetadata(tableName);
             if (!record.isAllocated()) {
@@ -1235,7 +1255,7 @@ public class Database implements AutoCloseable {
             try {
                 // TODO(proj4_part3): add locking
 
-                lockTableMetadata(prefixedTableName, LockType.NL);
+                lockTableMetadata(prefixedTableName, LockType.IX);
 
                 TableInfoRecord record = getTableMetadata(prefixedTableName);
                 if (record.isAllocated()) {
@@ -1269,8 +1289,9 @@ public class Database implements AutoCloseable {
             TransactionContext.setTransaction(transactionContext);
             try {
                 // TODO(proj4_part3): add locking
+                lockTableMetadata(prefixedTableName, LockType.X);
+                LockUtil.ensureSufficientLockHeld(getTableContext(tableName), LockType.X);
 
-                lockTableMetadata(prefixedTableName, LockType.NL);
 
                 TableInfoRecord record = getTableMetadata(prefixedTableName);
                 if (!record.isAllocated()) {
@@ -1298,9 +1319,11 @@ public class Database implements AutoCloseable {
             TransactionContext.setTransaction(transactionContext);
             try {
                 // TODO(proj4_part3): add locking
-
+                LockUtil.ensureSufficientLockHeld(lockManager.databaseContext(), LockType.X);
                 List<String> tableNames = new ArrayList<>(tableLookup.keySet());
-
+                if (tableNames.size() == 0) {
+                    LockUtil.ensureSufficientLockHeld(lockManager.databaseContext(), LockType.X);
+                }
                 for (String s : tableNames) {
                     if (s.startsWith("tables.")) {
                         this.dropTable(s);
@@ -1321,7 +1344,7 @@ public class Database implements AutoCloseable {
             try {
                 // TODO(proj4_part3): add locking
 
-                lockTableMetadata(prefixedTableName, LockType.NL);
+                lockTableMetadata(prefixedTableName, LockType.IX);
 
                 TableInfoRecord tableMetadata = getTableMetadata(prefixedTableName);
                 if (!tableMetadata.isAllocated()) {
@@ -1339,7 +1362,7 @@ public class Database implements AutoCloseable {
                 Type colType = schemaColType.get(columnIndex);
                 String indexName = tableName + "," + columnName;
 
-                lockIndexMetadata(indexName, LockType.NL);
+                lockIndexMetadata(indexName, LockType.X);
 
                 BPlusTreeMetadata metadata = getIndexMetadata(tableName, columnName);
                 if (metadata != null) {
@@ -1389,7 +1412,8 @@ public class Database implements AutoCloseable {
             try {
                 // TODO(proj4_part3): add locking
 
-                lockIndexMetadata(indexName, LockType.NL);
+                lockIndexMetadata(indexName, LockType.X);
+                LockUtil.ensureSufficientLockHeld(getIndexContext(indexName), LockType.X);
 
                 BPlusTreeMetadata metadata = getIndexMetadata(tableName, columnName);
                 if (metadata == null) {
