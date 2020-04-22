@@ -108,6 +108,9 @@ public class ARIESRecoveryManager implements RecoveryManager {
      * @param transNum transaction being committed
      * @return LSN of the commit record
      */
+
+    //The lastLSN in a transaction table entry represents the most recent operation that occurred for that transaction
+    // (another way to phrase it: the LSN of the last operation that occurred for that transaction).
     @Override
     public long commit(long transNum) {
         // TODO(proj5): implement
@@ -163,6 +166,17 @@ public class ARIESRecoveryManager implements RecoveryManager {
      * @param transNum transaction to end
      * @return LSN of the end record
      */
+    //As long as your abort method is only emitting a single record of type AbortTransactionLogRecord then you're fine.
+    // The docstring stating "No CLRs should be emitted" just means don't try to rollback in abort.
+
+    // Rolling back entails checking the transaction's status (transactionEntry.transaction.getStatus() may be helpful here),
+    // and if it's aborting, starting with the latest record for that transaction, undo it if it's undoable,
+    // find the second latest record for the transaction, undo it if it's undoable, find the third latest record for the transaction,
+    // undo if it it's undoable, etc... You should be undoing more than just the AbortLogRecord.
+    // I wouldn't recommend scanAll here since I believe that will return every single record from all transactions and in oldest to latest order.
+
+    //Given the latest record, is there a way to get the second latest record's LSN (the previous LSN).
+    // Once you have the LSN you can get the record using one of logManager's methods.
     @Override
     public long end(long transNum) {
         // TODO(proj5): implement
@@ -171,17 +185,28 @@ public class ARIESRecoveryManager implements RecoveryManager {
 
         long lastLSN = transactionEntry.lastLSN;
         long prevLSN = transactionEntry.lastLSN;
+
         LogRecord logRecord = logManager.fetchLogRecord(prevLSN);
 
-        if (logRecord.isUndoable()) {
-            Pair<LogRecord, Boolean> CLR = logRecord.undo(prevLSN);
-            CLR.getFirst().redo(diskSpaceManager, bufferManager);
-            lastLSN = CLR.getFirst().getLSN();
+        if (transactionEntry.transaction.getStatus().equals(Transaction.Status.ABORTING)) {
+            while(!logRecord.getType().equals(LogType.COMMIT_TRANSACTION)) {
+                if (logRecord.isUndoable()) {
+                    Pair<LogRecord, Boolean> CLR = logRecord.undo(prevLSN);
+                    //CLR.getFirst().redo(diskSpaceManager, bufferManager);
+                    lastLSN = CLR.getFirst().getLSN();
+                } //if not undoable?????
+                if (lastLSN != prevLSN) {
+                    logRecord = logManager.fetchLogRecord(lastLSN);
+                } else {
+                    break;
+                }
+            }
+
         }
         transactionEntry.lastLSN = lastLSN;
         EndTransactionLogRecord endLogRecord = new EndTransactionLogRecord(transNum, lastLSN); ///last or prev
         long currLSN = logManager.appendToLog(endLogRecord);
-
+        //transactionEntry.transaction.setStatus(Transaction.Status.COMPLETE); <<-- status??
         return currLSN;
     }
 
@@ -230,10 +255,14 @@ public class ARIESRecoveryManager implements RecoveryManager {
      * @param after bytes starting at pageOffset after the write
      * @return LSN of last record written to log
      */
-    //UpdatePageLogeLogRecord and change the parameters to make it do undo or redo.
-    //Take a look at the fromBytes method and how many bytes it uses, how many bytes an EFFECTIVE_PAGE_SIZE is,
-    //and consider the fact that you will be writing before and after to the record (both of which have the same length).
-    //You can also deduce the behavior of undo and redo from looking at the appropriate method's isUndoable method, as mentioned above.
+    //The idea here is that rather than having a single record that updates [before -> after]
+    //(which may require more bytes than we allow for a page), we split it into two records: [before->null], [null->after].
+    //These update records will be undo-only and redo-only respectively (the order given in the spec),
+    // which is enforced in the method mentioned by the student above (UpdatePageLogRecord#isUndoable)
+
+    //The after record should have the before record's LSN as its prevLSN, since that's the order they're appended to in the log.
+
+    //you use UpdatePageLogeLogRecord and change the parameters to make it do undo or redo.
     @Override
     public long logPageWrite(long transNum, long pageNum, short pageOffset, byte[] before,
                              byte[] after) {
@@ -242,10 +271,30 @@ public class ARIESRecoveryManager implements RecoveryManager {
         // TODO(proj5): implement
         TransactionTableEntry transactionEntry = transactionTable.get(transNum);
         assert (transactionEntry != null);
-        //if ( > (BufferManager.EFFECTIVE_PAGE_SIZE / 2)) {
+        long prevLSN = transactionEntry.lastLSN;
 
-        //}
-        return -1L;
+        if (after.length > (BufferManager.EFFECTIVE_PAGE_SIZE / 2)) {
+            if (before.length > 0) {
+                UpdatePageLogRecord updatePageLogRecord = new UpdatePageLogRecord(transNum, pageNum, prevLSN, pageOffset, before,
+                        after);
+                prevLSN = logManager.appendToLog(updatePageLogRecord);
+            }
+            if (after.length > 0) {
+                UndoUpdatePageLogRecord undoUpdatePageLogRecord = new UndoUpdatePageLogRecord(transNum, pageNum, prevLSN, transactionEntry.lastLSN, pageOffset, after);
+                prevLSN = logManager.appendToLog(undoUpdatePageLogRecord);
+            }
+        } else {
+            UpdatePageLogRecord updatePageLogRecord = new UpdatePageLogRecord(transNum, pageNum, prevLSN, pageOffset, before,
+                    after);
+            prevLSN = logManager.appendToLog(updatePageLogRecord);
+
+        }
+        transactionEntry.lastLSN = prevLSN;
+        transactionEntry.touchedPages.add(pageNum);
+        if (!dirtyPageTable.containsKey(pageNum)) {
+            dirtyPageTable.put(pageNum, prevLSN);
+        }
+        return prevLSN;
     }
 
     /**
