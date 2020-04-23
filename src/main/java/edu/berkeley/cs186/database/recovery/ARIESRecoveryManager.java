@@ -119,11 +119,11 @@ public class ARIESRecoveryManager implements RecoveryManager {
 
         long prevLSN = transactionEntry.lastLSN;
         CommitTransactionLogRecord commitLogRecord = new CommitTransactionLogRecord(transNum, prevLSN);
-        long currLSN = logManager.appendToLog(commitLogRecord);
+        long currLSN = logManager.appendToLog(commitLogRecord);//write commit record to Log
         assert (prevLSN <= currLSN);
-        logManager.flushToLSN(currLSN);
+        logManager.flushToLSN(currLSN); //flush log up to the commit record -> means from the beginning? iterate?
         transactionEntry.lastLSN = currLSN;//update LSN of the transaction
-        transactionEntry.transaction.setStatus(Transaction.Status.COMMITTING);
+        transactionEntry.transaction.setStatus(Transaction.Status.COMMITTING);//update transaction status
         //do we keep track flushedLSN?
 
         return currLSN;
@@ -166,47 +166,69 @@ public class ARIESRecoveryManager implements RecoveryManager {
      * @param transNum transaction to end
      * @return LSN of the end record
      */
-    //As long as your abort method is only emitting a single record of type AbortTransactionLogRecord then you're fine.
-    // The docstring stating "No CLRs should be emitted" just means don't try to rollback in abort.
+    // I'm not adding records of the undo's to the log (getting 14 instead of 18 total records because of 0 undos instead of 4).
+    // However, looking at UndoUpdatePageLogRecord's constructor,
+    // it seems that I don't have all of the information necessary to add records of the undo's (namely, the page offset and after array).
+    // Is there a specific place I should be looking for this information?
 
-    // Rolling back entails checking the transaction's status (transactionEntry.transaction.getStatus() may be helpful here),
-    // and if it's aborting, starting with the latest record for that transaction, undo it if it's undoable,
-    // find the second latest record for the transaction, undo it if it's undoable, find the third latest record for the transaction,
-    // undo if it it's undoable, etc... You should be undoing more than just the AbortLogRecord.
-    // I wouldn't recommend scanAll here since I believe that will return every single record from all transactions and in oldest to latest order.
+    //Nvm should just pass in the record you get in the CLR pair
 
-    //Given the latest record, is there a way to get the second latest record's LSN (the previous LSN).
-    // Once you have the LSN you can get the record using one of logManager's methods.
+    //Undo all log records that can be undone by adding CLRs to log
     @Override
     public long end(long transNum) {
         // TODO(proj5): implement
         TransactionTableEntry transactionEntry = transactionTable.get(transNum);
         assert (transactionEntry != null);
 
-        long lastLSN = transactionEntry.lastLSN;
         long prevLSN = transactionEntry.lastLSN;
+        long lastLSN = transactionEntry.lastLSN;//will update this
 
-        LogRecord logRecord = logManager.fetchLogRecord(prevLSN);
+        LogRecord logRecord = logManager.fetchLogRecord(lastLSN);
+
 
         if (transactionEntry.transaction.getStatus().equals(Transaction.Status.ABORTING)) {
-            while(!logRecord.getType().equals(LogType.COMMIT_TRANSACTION)) {
-                if (logRecord.isUndoable()) {
-                    Pair<LogRecord, Boolean> CLR = logRecord.undo(prevLSN);
-                    //CLR.getFirst().redo(diskSpaceManager, bufferManager);
-                    lastLSN = CLR.getFirst().getLSN();
-                } //if not undoable?????
-                if (lastLSN != prevLSN) {
-                    logRecord = logManager.fetchLogRecord(lastLSN);
-                } else {
-                    break;
-                }
-            }
 
+            while (logRecord.getPrevLSN().isPresent()) { //check util we can't unroll more
+                if (logRecord.isUndoable()) {
+                    Pair<LogRecord, Boolean> CLR = logRecord.undo(lastLSN);
+                    //lastLSN = CLR.getFirst().getLSN(); //CLR -- look into the Boolean(relate to log) & update transaction entry && dirty page
+                    //appending the returned CLR record to the log using appendToLog  //append every CLR to log
+
+                    LogRecord clrLogRecord = CLR.getFirst();
+                    Optional<Long> pageNum = logRecord.getPageNum(); //<-----should modify DPT???
+                    if (CLR.getSecond()) {
+                        logManager.flushToLSN(prevLSN);
+
+                        if (pageNum.isPresent() && dirtyPageTable.containsKey(pageNum.get())) { //<==== necessary or not
+                            dirtyPageTable.remove(pageNum.get());
+                        }
+                    }
+                    lastLSN = logManager.appendToLog(clrLogRecord); //append CLR 110
+                    transactionEntry.lastLSN = lastLSN;
+                    clrLogRecord.redo(diskSpaceManager, bufferManager);
+                    if (pageNum.isPresent() && !dirtyPageTable.containsKey(pageNum.get())) { //????
+                        dirtyPageTable.put(logRecord.getPageNum().get(), lastLSN);
+                    }
+                    if (!logRecord.getUndoNextLSN().isEmpty()) {
+                        prevLSN = logRecord.getUndoNextLSN().get();
+                        //and redundant b/c we are checking in while
+                    } else {
+                        prevLSN = logRecord.getPrevLSN().get();
+                    }
+
+                } else {
+                    prevLSN = logRecord.getPrevLSN().get();
+                }
+                logRecord = logManager.fetchLogRecord(prevLSN);//get prev LSN and previous logRecord that is undoable. but what if prev == null?
+            }
         }
+
         transactionEntry.lastLSN = lastLSN;
-        EndTransactionLogRecord endLogRecord = new EndTransactionLogRecord(transNum, lastLSN); ///last or prev
-        long currLSN = logManager.appendToLog(endLogRecord);
-        //transactionEntry.transaction.setStatus(Transaction.Status.COMPLETE); <<-- status??
+        EndTransactionLogRecord endLogRecord = new EndTransactionLogRecord(transNum, lastLSN); ///
+        long currLSN = logManager.appendToLog(endLogRecord); //append to log
+
+        transactionEntry.transaction.setStatus(Transaction.Status.COMPLETE); //but why we change the status and change the last LSN of the transactionTable we anyway delete the record
+        transactionTable.remove(transNum);//remove from transaction table
         return currLSN;
     }
 
