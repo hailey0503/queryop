@@ -189,7 +189,7 @@ public class ARIESRecoveryManager implements RecoveryManager {
             while (prevLSN != 0) { //check util we can't unroll more
                 LogRecord logRecord = logManager.fetchLogRecord(prevLSN);
                 if (logRecord.isUndoable()) {
-                    Pair<LogRecord, Boolean> CLR = logRecord.undo(prevLSN);//<--
+                    Pair<LogRecord, Boolean> CLR = logRecord.undo(logLSN);//<--???? why we undo on logLSN? ,<--LSN of new CRL record
 
                     LogRecord clrLogRecord = CLR.getFirst();
                     Optional<Long> pageNum = logRecord.getPageNum();
@@ -205,14 +205,14 @@ public class ARIESRecoveryManager implements RecoveryManager {
                             dirtyPageTable.put(logRecord.getPageNum().get(), logLSN);
                         }
                     }
-
-                    clrLogRecord.redo(diskSpaceManager, bufferManager);
-
-                    if (!logRecord.getUndoNextLSN().isEmpty()) {
-                        prevLSN = logRecord.getUndoNextLSN().get();
+                    if (clrLogRecord.isRedoable()) {
+                        clrLogRecord.redo(diskSpaceManager, bufferManager);
+                    }
+                    if (!clrLogRecord.getUndoNextLSN().isEmpty()) {
+                        prevLSN = clrLogRecord.getUndoNextLSN().get();
                     } else {
-                        if (logRecord.getPrevLSN().isPresent()) {
-                            prevLSN = logRecord.getPrevLSN().get();
+                        if (clrLogRecord.getPrevLSN().isPresent()) {
+                            prevLSN = clrLogRecord.getPrevLSN().get();
                         } else {
                             break;
                         }
@@ -511,14 +511,14 @@ public class ARIESRecoveryManager implements RecoveryManager {
 
         // All of the transaction's changes strictly after the record at LSN should be undone.
         long LSN = transactionEntry.getSavepoint(name);
-        
+
         long logLSN = transactionEntry.lastLSN;//will update this
         long prevLSN = logLSN;
 
         while (prevLSN != LSN) { //check util we can't unroll more
             LogRecord logRecord = logManager.fetchLogRecord(prevLSN);
             if (logRecord.isUndoable()) {
-                Pair<LogRecord, Boolean> CLR = logRecord.undo(prevLSN);//<--
+                Pair<LogRecord, Boolean> CLR = logRecord.undo(logLSN);//<--???? why we undo on logLSN? ,<--LSN of new CRL record
 
                 LogRecord clrLogRecord = CLR.getFirst();
                 Optional<Long> pageNum = logRecord.getPageNum();
@@ -534,14 +534,14 @@ public class ARIESRecoveryManager implements RecoveryManager {
                         dirtyPageTable.put(logRecord.getPageNum().get(), logLSN);
                     }
                 }
-
-                clrLogRecord.redo(diskSpaceManager, bufferManager);
-
-                if (!logRecord.getUndoNextLSN().isEmpty()) {
-                    prevLSN = logRecord.getUndoNextLSN().get();
+                if (clrLogRecord.isRedoable()) {
+                    clrLogRecord.redo(diskSpaceManager, bufferManager);
+                }
+                if (!clrLogRecord.getUndoNextLSN().isEmpty()) {
+                    prevLSN = clrLogRecord.getUndoNextLSN().get();
                 } else {
-                    if (logRecord.getPrevLSN().isPresent()) {
-                        prevLSN = logRecord.getPrevLSN().get();
+                    if (clrLogRecord.getPrevLSN().isPresent()) {
+                        prevLSN = clrLogRecord.getPrevLSN().get();
                     } else {
                         break;
                     }
