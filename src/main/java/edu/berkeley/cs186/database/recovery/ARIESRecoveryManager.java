@@ -180,57 +180,65 @@ public class ARIESRecoveryManager implements RecoveryManager {
         TransactionTableEntry transactionEntry = transactionTable.get(transNum);
         assert (transactionEntry != null);
 
-        long prevLSN = transactionEntry.lastLSN;
-        long lastLSN = transactionEntry.lastLSN;//will update this
+        long prevLSN = transactionEntry.lastLSN; // (getting smaller)
+        long logLSN = transactionEntry.lastLSN; // (getting greater)
 
-        LogRecord logRecord = logManager.fetchLogRecord(lastLSN);
-
+        //LogRecord logRecord = logManager.fetchLogRecord(logLSN);
 
         if (transactionEntry.transaction.getStatus().equals(Transaction.Status.ABORTING)) {
-
-            while (logRecord.getPrevLSN().isPresent()) { //check util we can't unroll more
+            while (prevLSN != 0) { //check util we can't unroll more
+                LogRecord logRecord = logManager.fetchLogRecord(prevLSN);
                 if (logRecord.isUndoable()) {
-                    Pair<LogRecord, Boolean> CLR = logRecord.undo(lastLSN);
-                    //lastLSN = CLR.getFirst().getLSN(); //CLR -- look into the Boolean(relate to log) & update transaction entry && dirty page
-                    //appending the returned CLR record to the log using appendToLog  //append every CLR to log
+                    Pair<LogRecord, Boolean> CLR = logRecord.undo(prevLSN);//<--
 
                     LogRecord clrLogRecord = CLR.getFirst();
-                    Optional<Long> pageNum = logRecord.getPageNum(); //<-----should modify DPT???
+                    Optional<Long> pageNum = logRecord.getPageNum();
+                    logLSN = logManager.appendToLog(clrLogRecord);
+                    transactionEntry.lastLSN = logLSN;
                     if (CLR.getSecond()) {
-                        logManager.flushToLSN(prevLSN);
-
-                        if (pageNum.isPresent() && dirtyPageTable.containsKey(pageNum.get())) { //<==== necessary or not
-                            dirtyPageTable.remove(pageNum.get());
+                        logManager.flushToLSN(clrLogRecord.getLSN());
+                    }
+                    if (clrLogRecord.getType().equals(LogType.UNDO_ALLOC_PAGE)) {
+                        dirtyPageTable.remove(pageNum.get());
+                    } else if (clrLogRecord.getType().equals(LogType.UNDO_UPDATE_PAGE)) {
+                        if (pageNum.isPresent() && !dirtyPageTable.containsKey(pageNum.get())) { //????
+                            dirtyPageTable.put(logRecord.getPageNum().get(), logLSN);
                         }
                     }
-                    lastLSN = logManager.appendToLog(clrLogRecord); //append CLR 110
-                    transactionEntry.lastLSN = lastLSN;
+
                     clrLogRecord.redo(diskSpaceManager, bufferManager);
-                    if (pageNum.isPresent() && !dirtyPageTable.containsKey(pageNum.get())) { //????
-                        dirtyPageTable.put(logRecord.getPageNum().get(), lastLSN);
-                    }
+
                     if (!logRecord.getUndoNextLSN().isEmpty()) {
                         prevLSN = logRecord.getUndoNextLSN().get();
-                        //and redundant b/c we are checking in while
                     } else {
-                        prevLSN = logRecord.getPrevLSN().get();
+                        if (logRecord.getPrevLSN().isPresent()) {
+                            prevLSN = logRecord.getPrevLSN().get();
+                        } else {
+                            break;
+                        }
                     }
 
                 } else {
-                    prevLSN = logRecord.getPrevLSN().get();
+                    if (logRecord.getPrevLSN().isPresent()) {
+                        prevLSN = logRecord.getPrevLSN().get(); //prev null -> error
+                    } else {
+                        break;
+                    }
                 }
-                logRecord = logManager.fetchLogRecord(prevLSN);//get prev LSN and previous logRecord that is undoable. but what if prev == null?
+                //logRecord = logManager.fetchLogRecord(prevLSN);//get prev LSN and previous logRecord that is undoable. but what if prev == null?
             }
         }
 
-        transactionEntry.lastLSN = lastLSN;
-        EndTransactionLogRecord endLogRecord = new EndTransactionLogRecord(transNum, lastLSN); ///
+        transactionEntry.lastLSN = logLSN;
+        EndTransactionLogRecord endLogRecord = new EndTransactionLogRecord(transNum, logLSN); ///
         long currLSN = logManager.appendToLog(endLogRecord); //append to log
 
         transactionEntry.transaction.setStatus(Transaction.Status.COMPLETE); //but why we change the status and change the last LSN of the transactionTable we anyway delete the record
         transactionTable.remove(transNum);//remove from transaction table
         return currLSN;
     }
+   // private long rollback(TransactionTableEntry transactionEntry, LogRecord logRecord, long lastLSN) {
+
 
     /**
      * Called before a page is flushed from the buffer cache. This
@@ -503,10 +511,54 @@ public class ARIESRecoveryManager implements RecoveryManager {
 
         // All of the transaction's changes strictly after the record at LSN should be undone.
         long LSN = transactionEntry.getSavepoint(name);
+        
+        long logLSN = transactionEntry.lastLSN;//will update this
+        long prevLSN = logLSN;
 
-        // TODO(proj5): implement
-        return;
+        while (prevLSN != LSN) { //check util we can't unroll more
+            LogRecord logRecord = logManager.fetchLogRecord(prevLSN);
+            if (logRecord.isUndoable()) {
+                Pair<LogRecord, Boolean> CLR = logRecord.undo(prevLSN);//<--
+
+                LogRecord clrLogRecord = CLR.getFirst();
+                Optional<Long> pageNum = logRecord.getPageNum();
+                logLSN = logManager.appendToLog(clrLogRecord);
+                transactionEntry.lastLSN = logLSN;
+                if (CLR.getSecond()) {
+                    logManager.flushToLSN(clrLogRecord.getLSN());
+                }
+                if (clrLogRecord.getType().equals(LogType.UNDO_ALLOC_PAGE)) {
+                    dirtyPageTable.remove(pageNum.get());
+                } else if (clrLogRecord.getType().equals(LogType.UNDO_UPDATE_PAGE)) {
+                    if (pageNum.isPresent() && !dirtyPageTable.containsKey(pageNum.get())) { //????
+                        dirtyPageTable.put(logRecord.getPageNum().get(), logLSN);
+                    }
+                }
+
+                clrLogRecord.redo(diskSpaceManager, bufferManager);
+
+                if (!logRecord.getUndoNextLSN().isEmpty()) {
+                    prevLSN = logRecord.getUndoNextLSN().get();
+                } else {
+                    if (logRecord.getPrevLSN().isPresent()) {
+                        prevLSN = logRecord.getPrevLSN().get();
+                    } else {
+                        break;
+                    }
+                }
+
+            } else {
+                if (logRecord.getPrevLSN().isPresent()) {
+                    prevLSN = logRecord.getPrevLSN().get(); //prev null -> error
+                } else {
+                    break;
+                }
+            }
+        }
+        transactionEntry.lastLSN = logLSN;
     }
+
+
 
     /**
      * Create a checkpoint.
